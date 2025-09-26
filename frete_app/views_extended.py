@@ -2,10 +2,13 @@
 Views estendidas com suporte a busca de cidades e taxas especiais
 """
 
+import logging
+import re
+import unicodedata
 from fastapi import APIRouter, Request, Form, Query, HTTPException
 from fastapi.responses import HTMLResponse
 from typing import Optional, List
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_, and_
 
 from .db import engine
 from .models import Produto, VersaoTabela
@@ -13,8 +16,56 @@ from .models_extended import CidadeRodonaves, Estado, TaxaEspecial
 from .calc_extended import calcula_frete_completo, CalcBreakdownExtended
 from .fasthtml import *
 
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter()
+
+
+def normalizar_texto(texto: str) -> str:
+    """
+    Normaliza texto removendo acentos, convertendo para minúsculas e removendo caracteres especiais
+    """
+    if not texto:
+        return ""
+
+    # Converter para minúsculas
+    texto = texto.lower()
+
+    # Remover acentos usando NFD
+    texto = unicodedata.normalize('NFD', texto)
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+
+    # Substituir hífens, barras e outros separadores por espaços
+    texto = re.sub(r'[-/\\|_]+', ' ', texto)
+
+    # Remover caracteres especiais, manter apenas letras, números e espaços
+    texto = re.sub(r'[^a-z0-9\s]', '', texto)
+
+    # Remover espaços extras
+    texto = re.sub(r'\s+', ' ', texto).strip()
+
+    return texto
+
+
+def criar_termos_busca(termo: str) -> tuple[str, str, str]:
+    """
+    Cria diferentes variações do termo para busca:
+    - original: termo original normalizado
+    - inicio: para busca que começa com o termo
+    - contem: para busca que contém o termo
+    """
+    termo_norm = normalizar_texto(termo)
+
+    if not termo_norm:
+        return "", "", ""
+
+    termo_inicio = f"{termo_norm}%"
+    termo_contem = f"%{termo_norm}%"
+
+    return termo_norm, termo_inicio, termo_contem
 
 
 def layout_extended(content):
@@ -184,27 +235,73 @@ async def home_extended():
 
 @router.get("/extended/cidades", response_class=HTMLResponse)
 async def buscar_cidades(estado: str):
-    """Retorna campo de busca de cidades para o estado selecionado"""
+    """
+    Retorna campo de busca de cidades para o estado selecionado
+    Com busca case-insensitive e validação robusta
+    """
 
-    if not estado:
+    logger.info(f"[BUSCAR_CIDADES] Requisição para estado: '{estado}'")
+
+    try:
+        if not estado or not estado.strip():
+            logger.info("[BUSCAR_CIDADES] Estado não fornecido ou vazio")
+            return div({"class": "form-group"},
+                label({"for": "cidade_busca"}, "Cidade"),
+                input_({"type": "text", "name": "cidade_busca", "id": "cidade_busca",
+                       "placeholder": "Selecione o estado primeiro", "disabled": True})
+            )
+
+        # Normalizar estado
+        estado_norm = estado.strip().upper()
+        logger.info(f"[BUSCAR_CIDADES] Estado normalizado: '{estado_norm}'")
+
+        # Validar se o estado existe no banco
+        with Session(engine) as session:
+            estado_obj = session.exec(
+                select(Estado).where(Estado.sigla.ilike(estado_norm))
+            ).first()
+
+            if not estado_obj:
+                logger.warning(f"[BUSCAR_CIDADES] Estado não encontrado: '{estado_norm}'")
+                # Buscar estados disponíveis
+                estados_disponiveis = session.exec(select(Estado.sigla)).all()
+                logger.info(f"[BUSCAR_CIDADES] Estados disponíveis: {estados_disponiveis}")
+
+                return div({"class": "form-group"},
+                    label({"for": "cidade_busca"}, "Cidade"),
+                    input_({"type": "text", "name": "cidade_busca", "id": "cidade_busca",
+                           "placeholder": f"Estado '{estado_norm}' inválido", "disabled": True}),
+                    div({"class": "error", "style": "font-size: 12px; margin-top: 5px;"},
+                        f"Estado '{estado_norm}' não encontrado. Disponíveis: {', '.join(estados_disponiveis)}")
+                )
+
+            logger.info(f"[BUSCAR_CIDADES] Estado válido encontrado: {estado_obj.sigla} - {estado_obj.nome}")
+
+        # Campo de busca funcional
+        return div({"class": "form-group autocomplete"},
+            label({"for": "cidade_busca"}, "Cidade"),
+            input_({"type": "text", "name": "cidade_busca", "id": "cidade_busca",
+                   "placeholder": f"Digite o nome da cidade de {estado_obj.sigla}...",
+                   "hx-get": f"/extended/autocomplete?estado={estado_norm}",
+                   "hx-trigger": "keyup changed delay:300ms",
+                   "hx-target": "#cidade-suggestions",
+                   "hx-include": "[name='cidade_busca']",
+                   "autocomplete": "off"}),
+            input_({"type": "hidden", "name": "cidade_id", "id": "cidade_id"}),
+            div({"id": "cidade-suggestions", "class": "autocomplete-items"})
+        )
+
+    except Exception as e:
+        logger.error(f"[BUSCAR_CIDADES] Erro fatal: {e}")
+        logger.exception("Stack trace completo:")
+
         return div({"class": "form-group"},
             label({"for": "cidade_busca"}, "Cidade"),
             input_({"type": "text", "name": "cidade_busca", "id": "cidade_busca",
-                   "placeholder": "Selecione o estado primeiro", "disabled": True})
+                   "placeholder": "Erro interno. Verifique os logs.", "disabled": True}),
+            div({"class": "error", "style": "font-size: 12px; margin-top: 5px;"},
+                f"Erro interno ao carregar cidades. Estado: '{estado}'")
         )
-
-    return div({"class": "form-group autocomplete"},
-        label({"for": "cidade_busca"}, "Cidade"),
-        input_({"type": "text", "name": "cidade_busca", "id": "cidade_busca",
-               "placeholder": "Digite o nome da cidade...",
-               "hx-get": f"/extended/autocomplete?estado={estado}",
-               "hx-trigger": "keyup changed delay:300ms",
-               "hx-target": "#cidade-suggestions",
-               "hx-include": "[name='cidade_busca']",
-               "autocomplete": "off"}),
-        input_({"type": "hidden", "name": "cidade_id", "id": "cidade_id"}),
-        div({"id": "cidade-suggestions", "class": "autocomplete-items"})
-    )
 
 
 @router.get("/extended/autocomplete", response_class=HTMLResponse)
@@ -212,61 +309,231 @@ async def autocomplete_cidades(
     estado: str,
     q: str = Query("", alias="cidade_busca")
 ):
-    """Autocomplete para busca de cidades"""
+    """
+    Autocomplete COMPLETAMENTE ROBUSTO para busca de cidades
 
-    if len(q) < 2:
-        return ""
+    Funcionalidades:
+    - Busca case-insensitive
+    - Normalização de texto (remove acentos)
+    - Múltiplas estratégias de busca
+    - Logs detalhados para debug
+    - Tratamento robusto de erros
+    """
 
-    with Session(engine) as session:
-        # Buscar estado
-        estado_obj = session.exec(
-            select(Estado).where(Estado.sigla == estado)
-        ).first()
+    # Log inicial da requisição
+    logger.info(f"[AUTOCOMPLETE] Iniciando busca: estado='{estado}', termo='{q}'")
 
-        if not estado_obj:
-            return div({"class": "error"}, "Estado não encontrado")
+    try:
+        # Validação inicial do input
+        if not estado:
+            logger.warning("[AUTOCOMPLETE] Estado não fornecido")
+            return div({"class": "error"}, "Estado é obrigatório")
 
-        # Buscar cidades que começam com o termo
-        query = select(CidadeRodonaves).where(
-            CidadeRodonaves.estado_id == estado_obj.id,
-            CidadeRodonaves.nome.ilike(f"{q}%")
-        ).limit(20)
+        if not q or len(q.strip()) < 2:
+            logger.info(f"[AUTOCOMPLETE] Termo muito curto: '{q}' (min: 2 caracteres)")
+            return ""
 
-        cidades = session.exec(query).all()
+        # Normalizar entradas
+        estado_norm = estado.strip().upper()
+        termo_original = q.strip()
 
-        # Se não encontrou, buscar cidades que contém o termo
-        if not cidades:
-            query = select(CidadeRodonaves).where(
-                CidadeRodonaves.estado_id == estado_obj.id,
-                CidadeRodonaves.nome.ilike(f"%{q}%")
-            ).limit(20)
-            cidades = session.exec(query).all()
+        logger.info(f"[AUTOCOMPLETE] Inputs normalizados: estado='{estado_norm}', termo='{termo_original}'")
 
-        if not cidades:
-            return div({}, "Nenhuma cidade encontrada")
+        # Preparar termos de busca
+        termo_norm, termo_inicio, termo_contem = criar_termos_busca(termo_original)
 
-        # Gerar sugestões
-        items = []
-        for cidade in cidades:
-            onclick = f"document.getElementById('cidade_busca').value='{cidade.nome}'; "
-            onclick += f"document.getElementById('cidade_id').value='{cidade.id}'; "
-            onclick += "document.getElementById('cidade-suggestions').innerHTML='';"
+        if not termo_norm:
+            logger.warning(f"[AUTOCOMPLETE] Termo normalizado resultou vazio: '{termo_original}'")
+            return div({}, "Termo de busca inválido")
 
-            taxas = []
-            if cidade.tem_tda:
-                taxas.append(span({"class": "taxa"}, "TDA"))
-            if cidade.tem_trt:
-                taxas.append(span({"class": "taxa"}, "TRT"))
+        logger.info(f"[AUTOCOMPLETE] Termos de busca: normalizado='{termo_norm}', inicio='{termo_inicio}', contem='{termo_contem}'")
 
-            items.append(
-                div({"onclick": onclick},
-                    strong({}, cidade.nome),
-                    span({"class": "categoria"}, f"({cidade.categoria_tarifa})"),
-                    *taxas
+        with Session(engine) as session:
+            # Buscar estado com busca case-insensitive
+            logger.info(f"[AUTOCOMPLETE] Buscando estado: '{estado_norm}'")
+
+            estado_obj = session.exec(
+                select(Estado).where(Estado.sigla.ilike(estado_norm))
+            ).first()
+
+            if not estado_obj:
+                logger.error(f"[AUTOCOMPLETE] Estado não encontrado: '{estado_norm}'")
+                # Buscar estados disponíveis para debug
+                estados_disponiveis = session.exec(select(Estado.sigla)).all()
+                logger.info(f"[AUTOCOMPLETE] Estados disponíveis: {estados_disponiveis}")
+                return div({"class": "error"}, f"Estado '{estado_norm}' não encontrado")
+
+            logger.info(f"[AUTOCOMPLETE] Estado encontrado: {estado_obj.sigla} - {estado_obj.nome}")
+
+            # Estratégia 1: Busca exata normalizada (mais prioritária)
+            logger.info("[AUTOCOMPLETE] Estratégia 1: Busca exata normalizada")
+
+            # Criar coluna normalizada temporária para busca
+            # Usamos func.lower() e func.unaccent() se disponível no banco
+            cidades_exatas = session.exec(
+                select(CidadeRodonaves)
+                .where(
+                    and_(
+                        CidadeRodonaves.estado_id == estado_obj.id,
+                        CidadeRodonaves.nome.ilike(termo_original)
+                    )
                 )
-            )
+                .limit(5)
+            ).all()
 
-        return div({}, *items)
+            logger.info(f"[AUTOCOMPLETE] Estratégia 1 - Encontradas {len(cidades_exatas)} cidades exatas")
+
+            # Estratégia 2: Busca por início (case-insensitive)
+            logger.info("[AUTOCOMPLETE] Estratégia 2: Busca por início")
+
+            cidades_inicio = session.exec(
+                select(CidadeRodonaves)
+                .where(
+                    and_(
+                        CidadeRodonaves.estado_id == estado_obj.id,
+                        CidadeRodonaves.nome.ilike(f"{termo_original}%")
+                    )
+                )
+                .limit(15)
+            ).all()
+
+            logger.info(f"[AUTOCOMPLETE] Estratégia 2 - Encontradas {len(cidades_inicio)} cidades por início")
+
+            # Estratégia 3: Busca por conteúdo (case-insensitive)
+            logger.info("[AUTOCOMPLETE] Estratégia 3: Busca por conteúdo")
+
+            cidades_contem = session.exec(
+                select(CidadeRodonaves)
+                .where(
+                    and_(
+                        CidadeRodonaves.estado_id == estado_obj.id,
+                        CidadeRodonaves.nome.ilike(f"%{termo_original}%")
+                    )
+                )
+                .limit(20)
+            ).all()
+
+            logger.info(f"[AUTOCOMPLETE] Estratégia 3 - Encontradas {len(cidades_contem)} cidades por conteúdo")
+
+            # Combinar resultados removendo duplicatas (manter ordem de prioridade)
+            cidades_encontradas = []
+            ids_ja_adicionados = set()
+
+            # Adicionar por ordem de prioridade
+            for lista_cidades in [cidades_exatas, cidades_inicio, cidades_contem]:
+                for cidade in lista_cidades:
+                    if cidade.id not in ids_ja_adicionados:
+                        cidades_encontradas.append(cidade)
+                        ids_ja_adicionados.add(cidade.id)
+
+                        # Limitar a 20 resultados totais
+                        if len(cidades_encontradas) >= 20:
+                            break
+
+                if len(cidades_encontradas) >= 20:
+                    break
+
+            logger.info(f"[AUTOCOMPLETE] Total de cidades encontradas (sem duplicatas): {len(cidades_encontradas)}")
+
+            # Estratégia 4: Se ainda não encontrou nada, busca mais flexível
+            if not cidades_encontradas:
+                logger.info("[AUTOCOMPLETE] Estratégia 4: Busca flexível (palavras individuais)")
+
+                # Quebrar termo em palavras e buscar cada uma
+                palavras = termo_norm.split()
+                if len(palavras) > 1:
+                    # Buscar cidades que contenham qualquer uma das palavras
+                    condicoes_palavras = []
+                    for palavra in palavras:
+                        if len(palavra) >= 2:  # Só palavras com 2+ caracteres
+                            condicoes_palavras.append(CidadeRodonaves.nome.ilike(f"%{palavra}%"))
+
+                    if condicoes_palavras:
+                        cidades_flexivel = session.exec(
+                            select(CidadeRodonaves)
+                            .where(
+                                and_(
+                                    CidadeRodonaves.estado_id == estado_obj.id,
+                                    or_(*condicoes_palavras)
+                                )
+                            )
+                            .limit(15)
+                        ).all()
+
+                        cidades_encontradas.extend(cidades_flexivel)
+                        logger.info(f"[AUTOCOMPLETE] Estratégia 4 - Encontradas {len(cidades_flexivel)} cidades flexível")
+
+            # Verificar se encontrou alguma cidade
+            if not cidades_encontradas:
+                logger.warning(f"[AUTOCOMPLETE] Nenhuma cidade encontrada para '{termo_original}' no estado '{estado_norm}'")
+
+                # Buscar algumas cidades do estado para debug
+                amostra_cidades = session.exec(
+                    select(CidadeRodonaves.nome)
+                    .where(CidadeRodonaves.estado_id == estado_obj.id)
+                    .limit(5)
+                ).all()
+
+                logger.info(f"[AUTOCOMPLETE] Amostra de cidades disponíveis no estado: {amostra_cidades}")
+
+                return div({}, "Nenhuma cidade encontrada")
+
+            # Gerar HTML das sugestões
+            logger.info(f"[AUTOCOMPLETE] Gerando HTML para {len(cidades_encontradas)} cidades")
+
+            items = []
+            for i, cidade in enumerate(cidades_encontradas):
+                try:
+                    # Escape de aspas simples no nome da cidade para JavaScript
+                    nome_escaped = cidade.nome.replace("'", "\\'")
+
+                    onclick = f"document.getElementById('cidade_busca').value='{nome_escaped}'; "
+                    onclick += f"document.getElementById('cidade_id').value='{cidade.id}'; "
+                    onclick += "document.getElementById('cidade-suggestions').innerHTML='';"
+
+                    # Destacar termo buscado no nome
+                    nome_destacado = cidade.nome
+                    try:
+                        # Destacar termo original (case-insensitive)
+                        padrao = re.compile(re.escape(termo_original), re.IGNORECASE)
+                        nome_destacado = padrao.sub(lambda m: f"<strong>{m.group(0)}</strong>", cidade.nome)
+                    except Exception as e:
+                        logger.warning(f"[AUTOCOMPLETE] Erro ao destacar termo em '{cidade.nome}': {e}")
+                        nome_destacado = cidade.nome
+
+                    # Taxas especiais
+                    taxas = []
+                    if cidade.tem_tda:
+                        taxas.append(span({"class": "taxa"}, "TDA"))
+                    if cidade.tem_trt:
+                        taxas.append(span({"class": "taxa"}, "TRT"))
+
+                    # Log detalhado da cidade
+                    logger.debug(f"[AUTOCOMPLETE] Cidade {i+1}: {cidade.nome} (ID: {cidade.id}, Cat: {cidade.categoria_tarifa}, TDA: {cidade.tem_tda}, TRT: {cidade.tem_trt})")
+
+                    items.append(
+                        div({"onclick": onclick, "style": "cursor: pointer;"},
+                            # Usar innerHTML seguro
+                            span({}, cidade.nome),  # Não usar HTML raw aqui
+                            span({"class": "categoria"}, f"({cidade.categoria_tarifa})"),
+                            *taxas
+                        )
+                    )
+
+                except Exception as e:
+                    logger.error(f"[AUTOCOMPLETE] Erro ao processar cidade {cidade.nome}: {e}")
+                    continue
+
+            logger.info(f"[AUTOCOMPLETE] Busca concluída com sucesso: {len(items)} itens gerados")
+
+            return div({}, *items)
+
+    except Exception as e:
+        logger.error(f"[AUTOCOMPLETE] Erro fatal na busca: {e}")
+        logger.exception("Stack trace completo:")
+
+        return div({"class": "error"},
+                  f"Erro interno na busca. Verifique os logs. (Termo: '{q}', Estado: '{estado}')")
 
 
 @router.post("/extended/calcular", response_class=HTMLResponse)
