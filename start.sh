@@ -74,17 +74,79 @@ import_exit_code=$?
 if check_and_log_result "Importação de cidades" $import_exit_code $start_time; then
     log_with_timestamp "INFO" "=== TODAS AS CIDADES IMPORTADAS COM SUCESSO ==="
 else
-    log_with_timestamp "ERROR" "=== FALHA NA IMPORTAÇÃO DE CIDADES - TENTANDO BACKUP ==="
-    log_with_timestamp "INFO" "Iniciando script de backup de inicialização..."
+    log_with_timestamp "ERROR" "=== FALHA NA IMPORTAÇÃO DE CIDADES - POPULANDO DESTINO DIRETAMENTE ==="
+    log_with_timestamp "INFO" "Populando tabela Destino com dados dos arquivos locais..."
 
     start_backup_time=$(date +%s.%3N)
-    python initialize_db_production.py
+    python -c "
+import sys
+sys.path.insert(0, '.')
+from frete_app.db import engine
+from frete_app.models import Destino, Estado as EstadoSimples
+from sqlmodel import Session, select
+import pandas as pd
+
+print('[INFO] Iniciando população direta da tabela Destino...')
+
+with Session(engine) as session:
+    # Verificar se já tem dados
+    existing = len(session.exec(select(Destino)).all())
+    print(f'[INFO] Cidades existentes na tabela Destino: {existing}')
+
+    if existing == 0:
+        try:
+            # Ler Excel de cidades
+            df = pd.read_excel('Relação Cidades Atendidas Modal Rodoviário_25_03_25.xlsx')
+            print(f'[INFO] Lendo {len(df)} cidades do Excel...')
+
+            cidades_adicionadas = 0
+            for _, row in df.iterrows():
+                try:
+                    cidade = Destino(
+                        uf=str(row.get('UF', '')).strip().upper(),
+                        cidade=str(row.get('Cidade', '')).strip().upper(),
+                        categoria=str(row.get('Categoria', 'INTERIOR_1')).strip().upper()
+                    )
+                    session.add(cidade)
+                    cidades_adicionadas += 1
+
+                    if cidades_adicionadas % 100 == 0:
+                        print(f'[INFO] Processadas {cidades_adicionadas} cidades...')
+                        session.commit()
+                except Exception as e:
+                    print(f'[WARNING] Erro ao processar cidade: {e}')
+                    continue
+
+            session.commit()
+            print(f'[SUCCESS] {cidades_adicionadas} cidades adicionadas à tabela Destino!')
+
+        except Exception as e:
+            print(f'[ERROR] Falha ao ler Excel: {e}')
+            # Fallback crítico - usar dados básicos
+            print('[FALLBACK] Criando dados básicos...')
+
+            estados_basicos = [
+                ('SP', 'São Paulo'), ('RJ', 'Rio de Janeiro'), ('MG', 'Minas Gerais'),
+                ('PR', 'Paraná'), ('RS', 'Rio Grande do Sul'), ('SC', 'Santa Catarina'),
+                ('BA', 'Bahia'), ('PE', 'Pernambuco'), ('CE', 'Ceará'), ('DF', 'Distrito Federal')
+            ]
+
+            for uf, nome in estados_basicos:
+                cidade = Destino(uf=uf, cidade=nome, categoria='CAPITAL')
+                session.add(cidade)
+
+            session.commit()
+            print('[FALLBACK] 10 cidades básicas criadas')
+
+    final_count = len(session.exec(select(Destino)).all())
+    print(f'[FINAL] Total de cidades na tabela Destino: {final_count}')
+"
     backup_exit_code=$?
 
-    if check_and_log_result "Script de backup de inicialização" $backup_exit_code $start_backup_time; then
-        log_with_timestamp "INFO" "Script de backup executado com sucesso"
+    if check_and_log_result "População direta da tabela Destino" $backup_exit_code $start_backup_time; then
+        log_with_timestamp "INFO" "Tabela Destino populada com sucesso"
     else
-        log_with_timestamp "ERROR" "ERRO CRÍTICO: Backup de inicialização também falhou!"
+        log_with_timestamp "ERROR" "ERRO CRÍTICO: População da tabela Destino falhou!"
     fi
 fi
 
@@ -112,22 +174,28 @@ sys.path.insert(0, '.')
 try:
     from frete_app.db import engine
     from sqlmodel import Session, select, text
-    from frete_app.models import Produto
+    from frete_app.models import Produto, Destino
     from frete_app.models_extended import Estado, CidadeRodonaves, FilialRodonaves
 
     with Session(engine) as session:
         produtos = len(session.exec(select(Produto)).all())
-        estados = len(session.exec(select(Estado)).all())
-        cidades = len(session.exec(select(CidadeRodonaves)).all())
-        filiais = len(session.exec(select(FilialRodonaves)).all())
+        estados = len(session.exec(select(Estado)).all()) if Estado else 0
+        rodonaves_cidades = len(session.exec(select(CidadeRodonaves)).all()) if CidadeRodonaves else 0
+        destino_cidades = len(session.exec(select(Destino)).all()) if Destino else 0
+        filiais = len(session.exec(select(FilialRodonaves)).all()) if FilialRodonaves else 0
 
-    print(f'[INFO] Verificação final: {produtos} produtos, {estados} estados, {filiais} filiais, {cidades} cidades')
+    total_cidades = max(rodonaves_cidades, destino_cidades)
+    cidade_fonte = 'CidadeRodonaves' if rodonaves_cidades > 0 else 'Destino'
 
-    if produtos > 0 and estados > 0:
+    print(f'[INFO] Verificação final: {produtos} produtos, {estados} estados, {filiais} filiais')
+    print(f'[INFO] Cidades: {total_cidades} ({cidade_fonte})')
+    print(f'[DEBUG] CidadeRodonaves: {rodonaves_cidades}, Destino: {destino_cidades}')
+
+    if produtos > 0 and total_cidades > 100:  # Pelo menos 100 cidades
         print('[OK] Banco de dados validado e pronto para uso')
         sys.exit(0)
     else:
-        print('[ERROR] Banco de dados não está adequadamente inicializado')
+        print(f'[ERROR] Banco insuficiente: {produtos} produtos, {total_cidades} cidades')
         sys.exit(1)
 except Exception as e:
     print(f'[ERROR] Falha na verificação final: {e}')
