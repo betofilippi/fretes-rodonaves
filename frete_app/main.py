@@ -1,0 +1,76 @@
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+
+try:
+    from .db import create_db_and_tables
+    from .views import router as ui_router
+    from .views_extended import router as extended_router
+    from .seed_data import seed_initial_data
+except ImportError:
+    from db import create_db_and_tables
+    from views import router as ui_router
+    try:
+        from views_extended import router as extended_router
+    except ImportError:
+        extended_router = None
+    from seed_data import seed_initial_data
+
+app = FastAPI(
+    title="Calculadora de Frete Rodonaves",
+    description="Sistema de cálculo de fretes com FastAPI e HTMX",
+    version="1.0.0"
+)
+
+# CORS middleware (se necessário para desenvolvimento)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Em produção, especificar domínios
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Servir arquivos estáticos
+import os
+app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
+
+# Rota raiz redireciona para /extended (sistema principal)
+@app.get("/")
+async def root():
+    """Redireciona para o sistema principal /extended"""
+    return RedirectResponse(url="/extended", status_code=307)
+
+# Comentado - sistema antigo não é mais necessário
+# app.include_router(ui_router)
+
+# Sistema principal - extended
+if 'extended_router' in locals() and extended_router:
+    app.include_router(extended_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Inicialização da aplicação"""
+    # Criar tabelas
+    create_db_and_tables()
+
+    # Popular dados iniciais se necessário
+    seed_initial_data()
+
+
+@app.get("/health")
+async def health_check():
+    """Endpoint de health check"""
+    return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "frete_app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )

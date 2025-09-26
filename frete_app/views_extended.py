@@ -1,0 +1,467 @@
+"""
+Views estendidas com suporte a busca de cidades e taxas especiais
+"""
+
+from fastapi import APIRouter, Request, Form, Query, HTTPException
+from fastapi.responses import HTMLResponse
+from typing import Optional, List
+from sqlmodel import Session, select
+
+try:
+    from .db import engine
+    from .models import Produto, VersaoTabela
+    from .models_extended import CidadeRodonaves, Estado, TaxaEspecial
+    from .calc_extended import calcula_frete_completo, CalcBreakdownExtended
+    from .fasthtml import *
+except ImportError:
+    from db import engine
+    from models import Produto, VersaoTabela
+    from models_extended import CidadeRodonaves, Estado, TaxaEspecial
+    from calc_extended import calcula_frete_completo, CalcBreakdownExtended
+    from fasthtml import *
+
+
+router = APIRouter()
+
+
+def layout_extended(content):
+    """Layout base estendido com autocomplete para cidades"""
+    return html(
+        head(
+            meta({"charset": "utf-8"}),
+            meta({"name": "viewport", "content": "width=device-width, initial-scale=1"}),
+            title("Calculadora de Frete Rodonaves - Versão Completa"),
+            link({"rel": "stylesheet", "href": "/static/style.css"}),
+            script({"src": "https://unpkg.com/htmx.org@1.9.10"}),
+            style({}, """
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; padding: 20px; }
+                .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                h1 { color: #333; margin-bottom: 10px; }
+                .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
+                .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+                .form-group { display: flex; flex-direction: column; }
+                .form-group label { font-weight: 500; margin-bottom: 5px; color: #555; font-size: 14px; }
+                .form-group input, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+                .form-group input:focus, .form-group select:focus { outline: none; border-color: #007bff; }
+                .btn { padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s; }
+                .btn:hover { background: #0056b3; }
+                .btn:disabled { background: #ccc; cursor: not-allowed; }
+                .result-container { margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; }
+                .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+                .result-header h3 { color: #333; }
+                .result-total { font-size: 24px; font-weight: bold; color: #28a745; }
+                .table-breakdown { width: 100%; margin-top: 15px; }
+                .table-breakdown th { text-align: left; padding: 8px; background: #e9ecef; font-size: 13px; }
+                .table-breakdown td { padding: 8px; text-align: right; font-size: 13px; }
+                .table-breakdown tr.total { font-weight: bold; background: #e9ecef; }
+                .table-breakdown tr.hidden { display: none; }
+                .table-breakdown tr.taxa-especial { background: #fff3cd; }
+                .loading { text-align: center; padding: 20px; color: #666; }
+                .error { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-top: 10px; }
+                .info { background: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; margin-top: 10px; }
+                .warning { background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-top: 10px; }
+
+                /* Autocomplete styles */
+                .autocomplete { position: relative; }
+                .autocomplete-items { position: absolute; background: white; border: 1px solid #ddd; border-top: none; z-index: 99; top: 100%; left: 0; right: 0; max-height: 300px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .autocomplete-items div { padding: 10px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+                .autocomplete-items div:hover { background: #f8f9fa; }
+                .autocomplete-items div strong { color: #007bff; }
+                .autocomplete-items .categoria { font-size: 11px; color: #666; margin-left: 10px; }
+                .autocomplete-items .taxa { display: inline-block; padding: 2px 6px; background: #ff6b6b; color: white; border-radius: 3px; font-size: 10px; margin-left: 5px; }
+
+                .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+                .stat-card { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; }
+                .stat-card h4 { font-size: 12px; color: #666; margin-bottom: 5px; }
+                .stat-card .value { font-size: 20px; font-weight: bold; color: #333; }
+
+                .htmx-indicator { display: none; }
+                .htmx-request .htmx-indicator { display: inline; }
+                .htmx-request.btn { pointer-events: none; opacity: 0.7; }
+            """)
+        ),
+        body({}, content)
+    )
+
+
+@router.get("/extended", response_class=HTMLResponse)
+async def home_extended():
+    """Página inicial com interface estendida"""
+
+    with Session(engine) as session:
+        # Buscar produtos
+        produtos = session.exec(select(Produto)).all()
+
+        # Estatísticas do sistema
+        total_cidades = len(session.exec(select(CidadeRodonaves)).all())
+        cidades_com_tda = len(session.exec(
+            select(CidadeRodonaves).where(CidadeRodonaves.tem_tda == True)
+        ).all())
+        cidades_com_trt = len(session.exec(
+            select(CidadeRodonaves).where(CidadeRodonaves.tem_trt == True)
+        ).all())
+        estados_cobertos = len(session.exec(select(Estado)).all())
+
+    return layout_extended(
+        div({"class": "container"},
+            h1({}, "Calculadora de Frete Rodonaves"),
+
+            # Estatísticas
+            div({"class": "stats-grid"},
+                div({"class": "stat-card"},
+                    h4({}, "Cidades Atendidas"),
+                    div({"class": "value"}, f"{total_cidades:,}")
+                ),
+                div({"class": "stat-card"},
+                    h4({}, "Estados"),
+                    div({"class": "value"}, str(estados_cobertos))
+                ),
+                div({"class": "stat-card"},
+                    h4({}, "Cidades com TDA"),
+                    div({"class": "value"}, str(cidades_com_tda))
+                ),
+                div({"class": "stat-card"},
+                    h4({}, "Cidades com TRT"),
+                    div({"class": "value"}, str(cidades_com_trt))
+                )
+            ),
+
+            # Formulário
+            form({"hx-post": "/extended/calcular", "hx-target": "#resultado"},
+                div({"class": "form-grid"},
+                    # Produto
+                    div({"class": "form-group"},
+                        label({"for": "produto_id"}, "Produto"),
+                        select_({"name": "produto_id", "id": "produto_id", "required": True},
+                            option({"value": ""}, "Selecione um produto"),
+                            *[option({"value": str(p.id)},
+                                f"{p.nome} ({p.largura_cm}x{p.altura_cm}x{p.profundidade_cm}cm)")
+                              for p in produtos]
+                        )
+                    ),
+
+                    # Estado
+                    div({"class": "form-group"},
+                        label({"for": "estado"}, "Estado"),
+                        select_({"name": "estado", "id": "estado", "required": True,
+                                "hx-get": "/extended/cidades", "hx-target": "#cidade-container",
+                                "hx-trigger": "change"},
+                            option({"value": ""}, "Selecione o estado"),
+                            option({"value": "SP"}, "São Paulo"),
+                            option({"value": "RJ"}, "Rio de Janeiro"),
+                            option({"value": "MG"}, "Minas Gerais"),
+                            option({"value": "ES"}, "Espírito Santo"),
+                            option({"value": "PR"}, "Paraná"),
+                            option({"value": "SC"}, "Santa Catarina"),
+                            option({"value": "RS"}, "Rio Grande do Sul"),
+                            option({"value": "GO"}, "Goiás"),
+                            option({"value": "DF"}, "Distrito Federal"),
+                            option({"value": "MS"}, "Mato Grosso do Sul"),
+                            option({"value": "MT"}, "Mato Grosso")
+                        )
+                    ),
+
+                    # Cidade (será preenchida via HTMX)
+                    div({"class": "form-group", "id": "cidade-container"},
+                        label({"for": "cidade_id"}, "Cidade"),
+                        input_({"type": "text", "name": "cidade_busca", "id": "cidade_busca",
+                               "placeholder": "Selecione o estado primeiro", "disabled": True})
+                    ),
+
+                    # Valor NF
+                    div({"class": "form-group"},
+                        label({"for": "valor_nf"}, "Valor da NF (R$)"),
+                        input_({"type": "number", "name": "valor_nf", "id": "valor_nf",
+                               "step": "0.01", "min": "0", "placeholder": "Opcional"})
+                    )
+                ),
+
+                button({"type": "submit", "class": "btn"},
+                    span({"class": "htmx-indicator"}, "Calculando... "),
+                    "Calcular Frete"
+                )
+            ),
+
+            # Container para resultado
+            div({"id": "resultado"})
+        )
+    )
+
+
+@router.get("/extended/cidades", response_class=HTMLResponse)
+async def buscar_cidades(estado: str):
+    """Retorna campo de busca de cidades para o estado selecionado"""
+
+    if not estado:
+        return div({"class": "form-group"},
+            label({"for": "cidade_busca"}, "Cidade"),
+            input_({"type": "text", "name": "cidade_busca", "id": "cidade_busca",
+                   "placeholder": "Selecione o estado primeiro", "disabled": True})
+        )
+
+    return div({"class": "form-group autocomplete"},
+        label({"for": "cidade_busca"}, "Cidade"),
+        input_({"type": "text", "name": "cidade_busca", "id": "cidade_busca",
+               "placeholder": "Digite o nome da cidade...",
+               "hx-get": f"/extended/autocomplete?estado={estado}",
+               "hx-trigger": "keyup changed delay:300ms",
+               "hx-target": "#cidade-suggestions",
+               "hx-include": "[name='cidade_busca']",
+               "autocomplete": "off"}),
+        input_({"type": "hidden", "name": "cidade_id", "id": "cidade_id"}),
+        div({"id": "cidade-suggestions", "class": "autocomplete-items"})
+    )
+
+
+@router.get("/extended/autocomplete", response_class=HTMLResponse)
+async def autocomplete_cidades(
+    estado: str,
+    q: str = Query("", alias="cidade_busca")
+):
+    """Autocomplete para busca de cidades"""
+
+    if len(q) < 2:
+        return ""
+
+    with Session(engine) as session:
+        # Buscar estado
+        estado_obj = session.exec(
+            select(Estado).where(Estado.sigla == estado)
+        ).first()
+
+        if not estado_obj:
+            return div({"class": "error"}, "Estado não encontrado")
+
+        # Buscar cidades que começam com o termo
+        query = select(CidadeRodonaves).where(
+            CidadeRodonaves.estado_id == estado_obj.id,
+            CidadeRodonaves.nome.ilike(f"{q}%")
+        ).limit(20)
+
+        cidades = session.exec(query).all()
+
+        # Se não encontrou, buscar cidades que contém o termo
+        if not cidades:
+            query = select(CidadeRodonaves).where(
+                CidadeRodonaves.estado_id == estado_obj.id,
+                CidadeRodonaves.nome.ilike(f"%{q}%")
+            ).limit(20)
+            cidades = session.exec(query).all()
+
+        if not cidades:
+            return div({}, "Nenhuma cidade encontrada")
+
+        # Gerar sugestões
+        items = []
+        for cidade in cidades:
+            onclick = f"document.getElementById('cidade_busca').value='{cidade.nome}'; "
+            onclick += f"document.getElementById('cidade_id').value='{cidade.id}'; "
+            onclick += "document.getElementById('cidade-suggestions').innerHTML='';"
+
+            taxas = []
+            if cidade.tem_tda:
+                taxas.append(span({"class": "taxa"}, "TDA"))
+            if cidade.tem_trt:
+                taxas.append(span({"class": "taxa"}, "TRT"))
+
+            items.append(
+                div({"onclick": onclick},
+                    strong({}, cidade.nome),
+                    span({"class": "categoria"}, f"({cidade.categoria_tarifa})"),
+                    *taxas
+                )
+            )
+
+        return div({}, *items)
+
+
+@router.post("/extended/calcular", response_class=HTMLResponse)
+async def calcular_frete_extended(
+    produto_id: int = Form(...),
+    cidade_id: int = Form(...),
+    valor_nf: Optional[float] = Form(None)
+):
+    """Calcula frete com taxas especiais"""
+
+    # Calcular frete completo
+    resultado = calcula_frete_completo(produto_id, cidade_id, valor_nf)
+
+    if not resultado:
+        return div({"class": "result-container"},
+            div({"class": "error"}, "Erro ao calcular frete. Verifique os dados informados.")
+        )
+
+    # Buscar informações adicionais
+    with Session(engine) as session:
+        cidade = session.get(CidadeRodonaves, cidade_id)
+        produto = session.get(Produto, produto_id)
+
+        # Load related data within session to avoid DetachedInstanceError
+        cidade_nome = cidade.nome if cidade else "Desconhecida"
+        estado_sigla = cidade.estado.sigla if cidade and cidade.estado else "??"
+        produto_nome = produto.nome if produto else "Desconhecido"
+        cidade_categoria = cidade.categoria_tarifa if cidade else "Desconhecida"
+
+    # Gerar HTML do resultado
+    return div({"class": "result-container"},
+        div({"class": "result-header"},
+            h3({}, f"Frete para {cidade_nome}/{estado_sigla}"),
+            div({"class": "result-total"}, f"Total Frete Rodonaves: R$ {resultado.total:.2f}")
+        ),
+
+        # Informações do cálculo
+        div({"class": "info"},
+            f"Produto: {produto_nome} | ",
+            f"Peso Real: {resultado.peso_real_kg}kg | ",
+            f"Peso Cubado: {resultado.peso_cubado}kg | ",
+            f"Peso Taxável: {resultado.peso_taxavel}kg | ",
+            f"Categoria: {cidade_categoria}"
+        ),
+
+        # Prazo de entrega
+        div({"class": "info", "style": "background: #d4edda; border-color: #c3e6cb; color: #155724; margin-top: 10px;"},
+            f"📦 Prazo de Entrega: {resultado.prazo_formatado}" if resultado.prazo_formatado else "📦 Prazo de Entrega: Consulte",
+            f" ({resultado.tipo_transporte})" if resultado.tipo_transporte and resultado.tipo_transporte == "FLUVIAL" else ""
+        ),
+
+        # Breakdown detalhado
+        table({"class": "table-breakdown"},
+            tbody({},
+                tr({},
+                    th({}, "Base (faixa de peso)"),
+                    td({}, f"R$ {resultado.base_faixa:.2f}")
+                ),
+
+                # Excedente (se houver)
+                tr({"class": "hidden" if resultado.excedente_valor == 0 else ""},
+                    th({}, f"Excedente ({resultado.excedente_kg}kg)"),
+                    td({}, f"R$ {resultado.excedente_valor:.2f}")
+                ) if resultado.excedente_valor > 0 else "",
+
+                tr({},
+                    th({}, "Pedágio"),
+                    td({}, f"R$ {resultado.pedagio:.2f}")
+                ),
+
+                tr({},
+                    th({}, "Frete-valor (F-valor)"),
+                    td({}, f"R$ {resultado.fvalor:.2f}")
+                ),
+
+                tr({},
+                    th({}, "GRIS"),
+                    td({}, f"R$ {resultado.gris:.2f}")
+                ),
+
+                tr({},
+                    th({}, "ICMS (12%)"),
+                    td({}, f"R$ {resultado.icms:.2f}")
+                ),
+
+                # TDA (se houver)
+                tr({"class": "taxa-especial"} if resultado.tda > 0 else {"class": "hidden"},
+                    th({}, f"TDA - Taxa Dificuldade Acesso"),
+                    td({}, f"R$ {resultado.tda:.2f}")
+                ) if resultado.tda > 0 else "",
+
+                # TRT (se houver)
+                tr({"class": "taxa-especial"} if resultado.trt > 0 else {"class": "hidden"},
+                    th({}, f"TRT - Taxa Restrição Trânsito"),
+                    td({}, f"R$ {resultado.trt:.2f}")
+                ) if resultado.trt > 0 else "",
+
+                # Total Frete
+                tr({"class": "total"},
+                    th({}, "TOTAL FRETE RODONAVES"),
+                    td({}, f"R$ {resultado.total:.2f}")
+                ),
+
+                # Valor Embalagem
+                tr({},
+                    th({}, f"Valor Embalagem ({resultado.produto_nome})"),
+                    td({}, f"R$ {resultado.valor_embalagem:.2f}")
+                ),
+
+                # Total Geral
+                tr({"class": "total", "style": "background: #28a745; color: black; font-weight: bold;"},
+                    th({}, "VALOR TOTAL (Frete + Embalagem)"),
+                    td({}, f"R$ {resultado.total_com_embalagem:.2f}")
+                )
+            )
+        ),
+
+        # Avisos sobre taxas especiais
+        div({"class": "warning"},
+            f"⚠️ Esta cidade possui taxas especiais: {resultado.justificativa_taxas}"
+        ) if resultado.justificativa_taxas else ""
+    )
+
+
+@router.get("/extended/stats", response_class=HTMLResponse)
+async def estatisticas():
+    """Página de estatísticas do sistema"""
+
+    with Session(engine) as session:
+        # Estatísticas gerais
+        total_cidades = len(session.exec(select(CidadeRodonaves)).all())
+        total_estados = len(session.exec(select(Estado)).all())
+        total_produtos = len(session.exec(select(Produto)).all())
+        total_taxas = len(session.exec(select(TaxaEspecial)).all())
+
+        # Cidades por categoria
+        capitais = len(session.exec(
+            select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "CAPITAL")
+        ).all())
+        interior1 = len(session.exec(
+            select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_1")
+        ).all())
+        interior2 = len(session.exec(
+            select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_2")
+        ).all())
+
+        # Top estados
+        estados = session.exec(
+            select(Estado).join(CidadeRodonaves)
+        ).all()
+
+    return layout_extended(
+        div({"class": "container"},
+            h1({}, "Estatísticas do Sistema"),
+
+            div({"class": "stats-grid"},
+                div({"class": "stat-card"},
+                    h4({}, "Total de Cidades"),
+                    div({"class": "value"}, f"{total_cidades:,}")
+                ),
+                div({"class": "stat-card"},
+                    h4({}, "Estados Cobertos"),
+                    div({"class": "value"}, str(total_estados))
+                ),
+                div({"class": "stat-card"},
+                    h4({}, "Produtos Cadastrados"),
+                    div({"class": "value"}, str(total_produtos))
+                ),
+                div({"class": "stat-card"},
+                    h4({}, "Taxas Especiais"),
+                    div({"class": "value"}, str(total_taxas))
+                )
+            ),
+
+            h3({}, "Categorização de Cidades"),
+            div({"class": "stats-grid"},
+                div({"class": "stat-card"},
+                    h4({}, "Capitais"),
+                    div({"class": "value"}, str(capitais))
+                ),
+                div({"class": "stat-card"},
+                    h4({}, "Interior 1"),
+                    div({"class": "value"}, str(interior1))
+                ),
+                div({"class": "stat-card"},
+                    h4({}, "Interior 2"),
+                    div({"class": "value"}, str(interior2))
+                )
+            )
+        )
+    )

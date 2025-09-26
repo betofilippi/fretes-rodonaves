@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Excel files (development only)
+*.xlsx
+!requirements.txt
+
+# Test files
+test_*.py
+*_test.py
+*_validation.py
+comprehensive_*.py
+detailed_*.py
+final_*.py
+complete_*.py
+manual_*.py
+
+# Temp files
+nul
+tmp/
+temp/
