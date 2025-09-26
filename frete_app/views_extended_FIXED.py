@@ -368,10 +368,10 @@ async def autocomplete_cidades(
             # Criar coluna normalizada temporária para busca
             # Usamos func.lower() e func.unaccent() se disponível no banco
             cidades_exatas = session.exec(
-                select(Destino)
+                select(CidadeRodonaves)
                 .where(
                     and_(
-                        Destino.uf == estado_normalizado,
+                        CidadeRodonaves.estado_id == estado_obj.id,
                         Destino.cidade.ilike(termo_original)
                     )
                 )
@@ -384,10 +384,10 @@ async def autocomplete_cidades(
             logger.info("[AUTOCOMPLETE] Estratégia 2: Busca por início")
 
             cidades_inicio = session.exec(
-                select(Destino)
+                select(CidadeRodonaves)
                 .where(
                     and_(
-                        Destino.uf == estado_normalizado,
+                        CidadeRodonaves.estado_id == estado_obj.id,
                         Destino.cidade.ilike(f"{termo_original}%")
                     )
                 )
@@ -400,10 +400,10 @@ async def autocomplete_cidades(
             logger.info("[AUTOCOMPLETE] Estratégia 3: Busca por conteúdo")
 
             cidades_contem = session.exec(
-                select(Destino)
+                select(CidadeRodonaves)
                 .where(
                     and_(
-                        Destino.uf == estado_normalizado,
+                        CidadeRodonaves.estado_id == estado_obj.id,
                         Destino.cidade.ilike(f"%{termo_original}%")
                     )
                 )
@@ -447,10 +447,10 @@ async def autocomplete_cidades(
 
                     if condicoes_palavras:
                         cidades_flexivel = session.exec(
-                            select(Destino)
+                            select(CidadeRodonaves)
                             .where(
                                 and_(
-                                    Destino.uf == estado_normalizado,
+                                    CidadeRodonaves.estado_id == estado_obj.id,
                                     or_(*condicoes_palavras)
                                 )
                             )
@@ -467,7 +467,7 @@ async def autocomplete_cidades(
                 # Buscar algumas cidades do estado para debug
                 amostra_cidades = session.exec(
                     select(CidadeRodonaves.nome)
-                    .where(Destino.uf == estado_normalizado)
+                    .where(CidadeRodonaves.estado_id == estado_obj.id)
                     .limit(5)
                 ).all()
 
@@ -500,19 +500,19 @@ async def autocomplete_cidades(
 
                     # Taxas especiais
                     taxas = []
-                    if False:
+                    if cidade.tem_tda:
                         taxas.append(span({"class": "taxa"}, "TDA"))
-                    if False:
+                    if cidade.tem_trt:
                         taxas.append(span({"class": "taxa"}, "TRT"))
 
                     # Log detalhado da cidade
-                    logger.debug(f"[AUTOCOMPLETE] Cidade {i+1}: {cidade.cidade} (ID: {cidade.id}, Cat: {cidade.categoria}, TDA: {False}, TRT: {False})")
+                    logger.debug(f"[AUTOCOMPLETE] Cidade {i+1}: {cidade.cidade} (ID: {cidade.id}, Cat: {cidade.categoria_tarifa}, TDA: {cidade.tem_tda}, TRT: {cidade.tem_trt})")
 
                     items.append(
                         div({"onclick": onclick, "style": "cursor: pointer;"},
                             # Usar innerHTML seguro
                             span({}, cidade.cidade),  # Não usar HTML raw aqui
-                            span({"class": "categoria"}, f"({cidade.categoria})"),
+                            span({"class": "categoria"}, f"({cidade.categoria_tarifa})"),
                             *taxas
                         )
                     )
@@ -558,7 +558,7 @@ async def calcular_frete_extended(
         cidade_nome = cidade.cidade if cidade else "Desconhecida"
         estado_sigla = cidade.estado.sigla if cidade and cidade.estado else "??"
         produto_nome = produto.nome if produto else "Desconhecido"
-        cidade_categoria = cidade.categoria if cidade else "Desconhecida"
+        cidade_categoria = cidade.categoria_tarifa if cidade else "Desconhecida"
 
     # Gerar HTML do resultado
     return div({"class": "result-container"},
@@ -661,20 +661,20 @@ async def estatisticas():
 
     with Session(engine) as session:
         # Estatísticas gerais
-        total_cidades = len(session.exec(select(Destino)).all())
+        total_cidades = len(session.exec(select(CidadeRodonaves)).all())
         total_estados = len(session.exec(select(Estado)).all())
         total_produtos = len(session.exec(select(Produto)).all())
         total_taxas = len(session.exec(select(TaxaEspecial)).all())
 
         # Cidades por categoria
         capitais = len(session.exec(
-            select(Destino).where(CidadeRodonaves.categoria_tarifa == "CAPITAL")
+            select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "CAPITAL")
         ).all())
         interior1 = len(session.exec(
-            select(Destino).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_1")
+            select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_1")
         ).all())
         interior2 = len(session.exec(
-            select(Destino).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_2")
+            select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_2")
         ).all())
 
         # Top estados
