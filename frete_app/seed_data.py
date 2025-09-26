@@ -19,7 +19,7 @@ def seed_initial_data():
                 altura_cm=111.0,
                 profundidade_cm=150.0,
                 peso_real_kg=63.0,
-                valor_nf_padrao=8100.00
+                valor_nf_padrao=200.00
             ),
             Produto(
                 nome="Juna",
@@ -27,7 +27,7 @@ def seed_initial_data():
                 altura_cm=186.0,
                 profundidade_cm=128.0,
                 peso_real_kg=123.0,
-                valor_nf_padrao=15000.00
+                valor_nf_padrao=200.00
             ),
             Produto(
                 nome="Kimbo",
@@ -35,7 +35,7 @@ def seed_initial_data():
                 altura_cm=186.0,
                 profundidade_cm=128.0,
                 peso_real_kg=121.0,
-                valor_nf_padrao=15000.00
+                valor_nf_padrao=200.00
             ),
             Produto(
                 nome="Kay",
@@ -43,7 +43,7 @@ def seed_initial_data():
                 altura_cm=186.0,
                 profundidade_cm=128.0,
                 peso_real_kg=161.0,
-                valor_nf_padrao=16000.00
+                valor_nf_padrao=200.00
             ),
             Produto(
                 nome="Jaya",
@@ -51,7 +51,7 @@ def seed_initial_data():
                 altura_cm=186.0,
                 profundidade_cm=128.0,
                 peso_real_kg=107.0,
-                valor_nf_padrao=14000.00
+                valor_nf_padrao=200.00
             )
         ]
 

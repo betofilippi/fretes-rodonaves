@@ -217,15 +217,15 @@ with Session(engine) as session:
         # PRODUTOS COM ESPECIFICAÇÕES CORRETAS DOCUMENTADAS NO SISTEMA
         produtos = [
             {'nome': 'Zilla', 'largura_cm': 111.0, 'altura_cm': 111.0,
-             'profundidade_cm': 150.0, 'peso_real_kg': 63.0, 'valor_nf_padrao': 8100.0},
+             'profundidade_cm': 150.0, 'peso_real_kg': 63.0, 'valor_nf_padrao': 200.0},
             {'nome': 'Juna', 'largura_cm': 78.0, 'altura_cm': 186.0,
-             'profundidade_cm': 128.0, 'peso_real_kg': 123.0, 'valor_nf_padrao': 15000.0},
+             'profundidade_cm': 128.0, 'peso_real_kg': 123.0, 'valor_nf_padrao': 200.0},
             {'nome': 'Kimbo', 'largura_cm': 78.0, 'altura_cm': 186.0,
-             'profundidade_cm': 128.0, 'peso_real_kg': 121.0, 'valor_nf_padrao': 15000.0},
+             'profundidade_cm': 128.0, 'peso_real_kg': 121.0, 'valor_nf_padrao': 200.0},
             {'nome': 'Kay', 'largura_cm': 78.0, 'altura_cm': 186.0,
-             'profundidade_cm': 128.0, 'peso_real_kg': 161.0, 'valor_nf_padrao': 16000.0},
+             'profundidade_cm': 128.0, 'peso_real_kg': 161.0, 'valor_nf_padrao': 200.0},
             {'nome': 'Jaya', 'largura_cm': 78.0, 'altura_cm': 186.0,
-             'profundidade_cm': 128.0, 'peso_real_kg': 107.0, 'valor_nf_padrao': 14000.0}
+             'profundidade_cm': 128.0, 'peso_real_kg': 107.0, 'valor_nf_padrao': 200.0}
         ]
 
         for prod_data in produtos:
