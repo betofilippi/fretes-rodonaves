@@ -1,10 +1,6 @@
 from sqlmodel import Session, select
-try:
-    from .db import engine
-    from .models import Produto, VersaoTabela, ParametrosGerais, TarifaPeso, Destino
-except ImportError:
-    from db import engine
-    from models import Produto, VersaoTabela, ParametrosGerais, TarifaPeso, Destino
+from .db import engine
+from .models import Produto, VersaoTabela, ParametrosGerais, TarifaPeso, Destino
 
 
 def seed_initial_data():

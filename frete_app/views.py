@@ -6,34 +6,19 @@ import os
 import shutil
 from datetime import datetime
 
-try:
-    from .db import get_session
-    from .models import (
-        Produto, VersaoTabela, TarifaPeso, ParametrosGerais,
-        Destino, CorredorKM, MapDestinoCorredor
-    )
-    from .calc import calcula_frete, CalcInput, ParamSet, Tarifa
-    from .parsers import parse_pdf_tabela, extract_corredor_data_from_cte
-    from .fasthtml import (
-        html, head, body, title, meta, link, script, div, h1, h2, h3, h4, h5,
-        form, input_, select_, option, button, table, thead, tbody, tr, th, td,
-        container, row, col, card, form_group, alert, nav_link, label,
-        produto_select, destino_select, breakdown_table, htmx_form, loading_indicator
-    )
-except ImportError:
-    from db import get_session
-    from models import (
-        Produto, VersaoTabela, TarifaPeso, ParametrosGerais,
-        Destino, CorredorKM, MapDestinoCorredor
-    )
-    from calc import calcula_frete, CalcInput, ParamSet, Tarifa
-    from parsers import parse_pdf_tabela, extract_corredor_data_from_cte
-    from fasthtml import (
-        html, head, body, title, meta, link, script, div, h1, h2, h3, h4, h5,
-        form, input_, select_, option, button, table, thead, tbody, tr, th, td,
-        container, row, col, card, form_group, alert, nav_link, label,
-        produto_select, destino_select, breakdown_table, htmx_form, loading_indicator
-    )
+from .db import get_session
+from .models import (
+    Produto, VersaoTabela, TarifaPeso, ParametrosGerais,
+    Destino, CorredorKM, MapDestinoCorredor
+)
+from .calc import calcula_frete, CalcInput, ParamSet, Tarifa
+from .parsers import parse_pdf_tabela, extract_corredor_data_from_cte
+from .fasthtml import (
+    html, head, body, title, meta, link, script, div, h1, h2, h3, h4, h5,
+    form, input_, select_, option, button, table, thead, tbody, tr, th, td,
+    container, row, col, card, form_group, alert, nav_link, label,
+    produto_select, destino_select, breakdown_table, htmx_form, loading_indicator
+)
 
 router = APIRouter()
 

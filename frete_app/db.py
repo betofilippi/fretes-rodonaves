@@ -29,19 +29,11 @@ def get_session() -> Generator[Session, None, None]:
 
 def create_db_and_tables():
     """Cria tabelas no banco de dados"""
-    try:
-        from .models import SQLModel
-        # Import extended models to register them with SQLModel.metadata
-        from .models_extended import (
-            Estado, FilialRodonaves, CidadeRodonaves,
-            TaxaEspecial, CEPEspecial, TabelaTarifaCompleta,
-            HistoricoImportacao
-        )
-    except ImportError:
-        from models import SQLModel
-        from models_extended import (
-            Estado, FilialRodonaves, CidadeRodonaves,
-            TaxaEspecial, CEPEspecial, TabelaTarifaCompleta,
-            HistoricoImportacao
-        )
+    from .models import SQLModel
+    # Import extended models to register them with SQLModel.metadata
+    from .models_extended import (
+        Estado, FilialRodonaves, CidadeRodonaves,
+        TaxaEspecial, CEPEspecial, TabelaTarifaCompleta,
+        HistoricoImportacao
+    )
     SQLModel.metadata.create_all(engine)
