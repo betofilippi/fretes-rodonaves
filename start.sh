@@ -36,6 +36,16 @@ log_with_timestamp "INFO" "Variáveis de ambiente relevantes:"
 log_with_timestamp "INFO" "  PORT=${PORT:-8000}"
 log_with_timestamp "INFO" "  DATABASE_URL=${DATABASE_URL:0:50}..." # Só mostrar início por segurança
 
+# FORÇA CORREÇÃO DE PRODUTOS E ESTADOS
+log_with_timestamp "INFO" "=== EXECUTANDO CORREÇÃO FORÇADA ==="
+python force_fix_railway.py
+fix_exit_code=$?
+if [ $fix_exit_code -eq 0 ]; then
+    log_with_timestamp "INFO" "Correção forçada executada com sucesso!"
+else
+    log_with_timestamp "ERROR" "Correção forçada falhou, mas continuando..."
+fi
+
 # Create data directory if it doesn't exist
 log_with_timestamp "INFO" "=== ETAPA 1: VERIFICANDO DIRETÓRIO DE DADOS ==="
 start_time=$(date +%s.%3N)
