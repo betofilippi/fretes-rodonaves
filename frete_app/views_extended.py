@@ -138,10 +138,28 @@ async def home_extended():
         # Buscar produtos
         produtos = session.exec(select(Produto)).all()
 
-        # Estatísticas do sistema
-        total_cidades = len(session.exec(select(Destino)).all())
-        cidades_com_tda = 0  # TDA não aplicado na tabela Destino simples
-        cidades_com_trt = 0  # TRT não aplicado na tabela Destino simples
+        # Estatísticas do sistema - com fallback automático
+        # Tentar CidadeRodonaves primeiro, depois Destino
+        rodonaves_cities = session.exec(select(CidadeRodonaves)).all()
+        if rodonaves_cities:
+            # Usar dados da tabela CidadeRodonaves (sistema completo)
+            total_cidades = len(rodonaves_cities)
+            cidades_com_tda = len(session.exec(select(CidadeRodonaves).where(
+                CidadeRodonaves.categoria_tarifa.in_(["CAPITAL", "INTERIOR_1"])
+            )).all())
+            cidades_com_trt = len(session.exec(select(CidadeRodonaves).where(
+                CidadeRodonaves.categoria_tarifa == "INTERIOR_2"
+            )).all())
+        else:
+            # Fallback para tabela Destino (sistema simples)
+            destino_cities = session.exec(select(Destino)).all()
+            total_cidades = len(destino_cities)
+            cidades_com_tda = len(session.exec(select(Destino).where(
+                Destino.categoria.in_(["CAPITAL", "INTERIOR_1"])
+            )).all())
+            cidades_com_trt = len(session.exec(select(Destino).where(
+                Destino.categoria == "INTERIOR_2"
+            )).all())
         estados_cobertos = len(session.exec(select(Estado)).all())
 
     return layout_extended(
@@ -346,6 +364,12 @@ async def autocomplete_cidades(
         logger.info(f"[AUTOCOMPLETE] Termos de busca: normalizado='{termo_norm}', inicio='{termo_inicio}', contem='{termo_contem}'")
 
         with Session(engine) as session:
+            # Detectar qual tabela usar (CidadeRodonaves vs Destino)
+            rodonaves_count = len(session.exec(select(CidadeRodonaves)).all())
+            use_extended = rodonaves_count > 0
+
+            logger.info(f"[AUTOCOMPLETE] Sistema detectado: {'CidadeRodonaves' if use_extended else 'Destino'} ({rodonaves_count if use_extended else 'fallback'})")
+
             # Buscar estado com busca case-insensitive
             logger.info(f"[AUTOCOMPLETE] Buscando estado: '{estado_norm}'")
 
@@ -365,50 +389,93 @@ async def autocomplete_cidades(
             # Estratégia 1: Busca exata normalizada (mais prioritária)
             logger.info("[AUTOCOMPLETE] Estratégia 1: Busca exata normalizada")
 
-            # Criar coluna normalizada temporária para busca
-            # Usamos func.lower() e func.unaccent() se disponível no banco
-            cidades_exatas = session.exec(
-                select(Destino)
-                .where(
-                    and_(
-                        Destino.uf == estado_normalizado,
-                        Destino.cidade.ilike(termo_original)
+            if use_extended:
+                # Sistema completo: CidadeRodonaves
+                cidades_exatas = session.exec(
+                    select(CidadeRodonaves)
+                    .join(Estado, CidadeRodonaves.estado_id == Estado.id)
+                    .where(
+                        and_(
+                            Estado.sigla == estado_normalizado,
+                            CidadeRodonaves.nome.ilike(termo_original)
+                        )
                     )
-                )
-                .limit(5)
-            ).all()
+                    .limit(5)
+                ).all()
+            else:
+                # Sistema simples: Destino
+                cidades_exatas = session.exec(
+                    select(Destino)
+                    .where(
+                        and_(
+                            Destino.uf == estado_normalizado,
+                            Destino.cidade.ilike(termo_original)
+                        )
+                    )
+                    .limit(5)
+                ).all()
 
             logger.info(f"[AUTOCOMPLETE] Estratégia 1 - Encontradas {len(cidades_exatas)} cidades exatas")
 
             # Estratégia 2: Busca por início (case-insensitive)
             logger.info("[AUTOCOMPLETE] Estratégia 2: Busca por início")
 
-            cidades_inicio = session.exec(
-                select(Destino)
-                .where(
-                    and_(
-                        Destino.uf == estado_normalizado,
-                        Destino.cidade.ilike(f"{termo_original}%")
+            if use_extended:
+                # Sistema completo: CidadeRodonaves
+                cidades_inicio = session.exec(
+                    select(CidadeRodonaves)
+                    .join(Estado, CidadeRodonaves.estado_id == Estado.id)
+                    .where(
+                        and_(
+                            Estado.sigla == estado_normalizado,
+                            CidadeRodonaves.nome.ilike(f"{termo_original}%")
+                        )
                     )
-                )
-                .limit(15)
-            ).all()
+                    .limit(15)
+                ).all()
+            else:
+                # Sistema simples: Destino
+                cidades_inicio = session.exec(
+                    select(Destino)
+                    .where(
+                        and_(
+                            Destino.uf == estado_normalizado,
+                            Destino.cidade.ilike(f"{termo_original}%")
+                        )
+                    )
+                    .limit(15)
+                ).all()
 
             logger.info(f"[AUTOCOMPLETE] Estratégia 2 - Encontradas {len(cidades_inicio)} cidades por início")
 
             # Estratégia 3: Busca por conteúdo (case-insensitive)
             logger.info("[AUTOCOMPLETE] Estratégia 3: Busca por conteúdo")
 
-            cidades_contem = session.exec(
-                select(Destino)
-                .where(
-                    and_(
-                        Destino.uf == estado_normalizado,
-                        Destino.cidade.ilike(f"%{termo_original}%")
+            if use_extended:
+                # Sistema completo: CidadeRodonaves
+                cidades_contem = session.exec(
+                    select(CidadeRodonaves)
+                    .join(Estado, CidadeRodonaves.estado_id == Estado.id)
+                    .where(
+                        and_(
+                            Estado.sigla == estado_normalizado,
+                            CidadeRodonaves.nome.ilike(f"%{termo_original}%")
+                        )
                     )
-                )
-                .limit(20)
-            ).all()
+                    .limit(20)
+                ).all()
+            else:
+                # Sistema simples: Destino
+                cidades_contem = session.exec(
+                    select(Destino)
+                    .where(
+                        and_(
+                            Destino.uf == estado_normalizado,
+                            Destino.cidade.ilike(f"%{termo_original}%")
+                        )
+                    )
+                    .limit(20)
+                ).all()
 
             logger.info(f"[AUTOCOMPLETE] Estratégia 3 - Encontradas {len(cidades_contem)} cidades por conteúdo")
 
@@ -443,19 +510,37 @@ async def autocomplete_cidades(
                     condicoes_palavras = []
                     for palavra in palavras:
                         if len(palavra) >= 2:  # Só palavras com 2+ caracteres
-                            condicoes_palavras.append(Destino.cidade.ilike(f"%{palavra}%"))
+                            if use_extended:
+                                condicoes_palavras.append(CidadeRodonaves.nome.ilike(f"%{palavra}%"))
+                            else:
+                                condicoes_palavras.append(Destino.cidade.ilike(f"%{palavra}%"))
 
                     if condicoes_palavras:
-                        cidades_flexivel = session.exec(
-                            select(Destino)
-                            .where(
-                                and_(
-                                    Destino.uf == estado_normalizado,
-                                    or_(*condicoes_palavras)
+                        if use_extended:
+                            # Sistema completo: CidadeRodonaves
+                            cidades_flexivel = session.exec(
+                                select(CidadeRodonaves)
+                                .join(Estado, CidadeRodonaves.estado_id == Estado.id)
+                                .where(
+                                    and_(
+                                        Estado.sigla == estado_normalizado,
+                                        or_(*condicoes_palavras)
+                                    )
                                 )
-                            )
-                            .limit(15)
-                        ).all()
+                                .limit(15)
+                            ).all()
+                        else:
+                            # Sistema simples: Destino
+                            cidades_flexivel = session.exec(
+                                select(Destino)
+                                .where(
+                                    and_(
+                                        Destino.uf == estado_normalizado,
+                                        or_(*condicoes_palavras)
+                                    )
+                                )
+                                .limit(15)
+                            ).all()
 
                         cidades_encontradas.extend(cidades_flexivel)
                         logger.info(f"[AUTOCOMPLETE] Estratégia 4 - Encontradas {len(cidades_flexivel)} cidades flexível")
@@ -465,11 +550,19 @@ async def autocomplete_cidades(
                 logger.warning(f"[AUTOCOMPLETE] Nenhuma cidade encontrada para '{termo_original}' no estado '{estado_norm}'")
 
                 # Buscar algumas cidades do estado para debug
-                amostra_cidades = session.exec(
-                    select(CidadeRodonaves.nome)
-                    .where(Destino.uf == estado_normalizado)
-                    .limit(5)
-                ).all()
+                if use_extended:
+                    amostra_cidades = session.exec(
+                        select(CidadeRodonaves.nome)
+                        .join(Estado, CidadeRodonaves.estado_id == Estado.id)
+                        .where(Estado.sigla == estado_normalizado)
+                        .limit(5)
+                    ).all()
+                else:
+                    amostra_cidades = session.exec(
+                        select(Destino.cidade)
+                        .where(Destino.uf == estado_normalizado)
+                        .limit(5)
+                    ).all()
 
                 logger.info(f"[AUTOCOMPLETE] Amostra de cidades disponíveis no estado: {amostra_cidades}")
 
@@ -481,22 +574,30 @@ async def autocomplete_cidades(
             items = []
             for i, cidade in enumerate(cidades_encontradas):
                 try:
+                    # Acesso universal aos campos (CidadeRodonaves vs Destino)
+                    if use_extended:
+                        cidade_nome = cidade.nome
+                        cidade_categoria = cidade.categoria_tarifa
+                    else:
+                        cidade_nome = cidade.cidade
+                        cidade_categoria = getattr(cidade, 'categoria', 'N/A')
+
                     # Escape de aspas simples no nome da cidade para JavaScript
-                    nome_escaped = cidade.cidade.replace("'", "\\'")
+                    nome_escaped = cidade_nome.replace("'", "\\'")
 
                     onclick = f"document.getElementById('cidade_busca').value='{nome_escaped}'; "
                     onclick += f"document.getElementById('cidade_id').value='{cidade.id}'; "
                     onclick += "document.getElementById('cidade-suggestions').innerHTML='';"
 
                     # Destacar termo buscado no nome
-                    nome_destacado = cidade.cidade
+                    nome_destacado = cidade_nome
                     try:
                         # Destacar termo original (case-insensitive)
                         padrao = re.compile(re.escape(termo_original), re.IGNORECASE)
-                        nome_destacado = padrao.sub(lambda m: f"<strong>{m.group(0)}</strong>", cidade.cidade)
+                        nome_destacado = padrao.sub(lambda m: f"<strong>{m.group(0)}</strong>", cidade_nome)
                     except Exception as e:
-                        logger.warning(f"[AUTOCOMPLETE] Erro ao destacar termo em '{cidade.cidade}': {e}")
-                        nome_destacado = cidade.cidade
+                        logger.warning(f"[AUTOCOMPLETE] Erro ao destacar termo em '{cidade_nome}': {e}")
+                        nome_destacado = cidade_nome
 
                     # Taxas especiais
                     taxas = []
@@ -506,19 +607,20 @@ async def autocomplete_cidades(
                         taxas.append(span({"class": "taxa"}, "TRT"))
 
                     # Log detalhado da cidade
-                    logger.debug(f"[AUTOCOMPLETE] Cidade {i+1}: {cidade.cidade} (ID: {cidade.id}, Cat: {cidade.categoria}, TDA: {False}, TRT: {False})")
+                    logger.debug(f"[AUTOCOMPLETE] Cidade {i+1}: {cidade_nome} (ID: {cidade.id}, Cat: {cidade_categoria}, TDA: {False}, TRT: {False})")
 
                     items.append(
                         div({"onclick": onclick, "style": "cursor: pointer;"},
                             # Usar innerHTML seguro
-                            span({}, cidade.cidade),  # Não usar HTML raw aqui
-                            span({"class": "categoria"}, f"({cidade.categoria})"),
+                            span({}, cidade_nome),  # Não usar HTML raw aqui
+                            span({"class": "categoria"}, f"({cidade_categoria})"),
                             *taxas
                         )
                     )
 
                 except Exception as e:
-                    logger.error(f"[AUTOCOMPLETE] Erro ao processar cidade {cidade.cidade}: {e}")
+                    cidade_nome_fallback = getattr(cidade, 'nome', getattr(cidade, 'cidade', 'Unknown'))
+                    logger.error(f"[AUTOCOMPLETE] Erro ao processar cidade {cidade_nome_fallback}: {e}")
                     continue
 
             logger.info(f"[AUTOCOMPLETE] Busca concluída com sucesso: {len(items)} itens gerados")
@@ -555,10 +657,16 @@ async def calcular_frete_extended(
         produto = session.get(Produto, produto_id)
 
         # Load related data within session to avoid DetachedInstanceError
-        cidade_nome = cidade.cidade if cidade else "Desconhecida"
-        estado_sigla = cidade.estado.sigla if cidade and cidade.estado else "??"
+        # Acesso universal aos campos da cidade
+        if cidade:
+            cidade_nome = getattr(cidade, 'nome', getattr(cidade, 'cidade', 'Desconhecida'))
+            cidade_categoria = getattr(cidade, 'categoria_tarifa', getattr(cidade, 'categoria', 'Desconhecida'))
+            estado_sigla = cidade.estado.sigla if hasattr(cidade, 'estado') and cidade.estado else getattr(cidade, 'uf', '??')
+        else:
+            cidade_nome = "Desconhecida"
+            cidade_categoria = "Desconhecida"
+            estado_sigla = "??"
         produto_nome = produto.nome if produto else "Desconhecido"
-        cidade_categoria = cidade.categoria if cidade else "Desconhecida"
 
     # Gerar HTML do resultado
     return div({"class": "result-container"},
@@ -660,22 +768,37 @@ async def estatisticas():
     """Página de estatísticas do sistema"""
 
     with Session(engine) as session:
-        # Estatísticas gerais
-        total_cidades = len(session.exec(select(Destino)).all())
+        # Estatísticas gerais - com fallback automático
+        rodonaves_cities = session.exec(select(CidadeRodonaves)).all()
+        if rodonaves_cities:
+            # Usar dados da tabela CidadeRodonaves (sistema completo)
+            total_cidades = len(rodonaves_cities)
+            capitais = len(session.exec(
+                select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "CAPITAL")
+            ).all())
+            interior1 = len(session.exec(
+                select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_1")
+            ).all())
+            interior2 = len(session.exec(
+                select(CidadeRodonaves).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_2")
+            ).all())
+        else:
+            # Fallback para tabela Destino (sistema simples)
+            destino_cities = session.exec(select(Destino)).all()
+            total_cidades = len(destino_cities)
+            capitais = len(session.exec(
+                select(Destino).where(Destino.categoria == "CAPITAL")
+            ).all())
+            interior1 = len(session.exec(
+                select(Destino).where(Destino.categoria == "INTERIOR_1")
+            ).all())
+            interior2 = len(session.exec(
+                select(Destino).where(Destino.categoria == "INTERIOR_2")
+            ).all())
+
         total_estados = len(session.exec(select(Estado)).all())
         total_produtos = len(session.exec(select(Produto)).all())
         total_taxas = len(session.exec(select(TaxaEspecial)).all())
-
-        # Cidades por categoria
-        capitais = len(session.exec(
-            select(Destino).where(Destino.categoria == "CAPITAL")
-        ).all())
-        interior1 = len(session.exec(
-            select(Destino).where(Destino.categoria == "INTERIOR_1")
-        ).all())
-        interior2 = len(session.exec(
-            select(Destino).where(Destino.categoria == "INTERIOR_2")
-        ).all())
 
         # Top estados
         estados = session.exec(
