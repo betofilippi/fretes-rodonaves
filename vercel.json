@@ -1,18 +1,22 @@
 {
-  "functions": {
-    "api/index.py": {
-      "runtime": "@vercel/python"
-    }
-  },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/api/index.py"
+      "src": "api/main.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "frete_app/static/**",
+      "use": "@vercel/static"
     }
   ],
-  "build": {
-    "env": {
-      "PYTHONPATH": "$PYTHONPATH:."
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "frete_app/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api/main.py"
     }
-  }
+  ]
 }
