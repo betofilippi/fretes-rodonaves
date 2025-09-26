@@ -51,32 +51,33 @@ with Session(engine) as session:
     print("\n--- INICIANDO POPULAÇÃO FORÇADA ---")
 
     # FORÇAR CRIAÇÃO DE PRODUTOS
-    if produtos_count < 8:
+    if produtos_count < 5:
         print("\n[1/3] Populando PRODUTOS...")
 
         # Deletar produtos existentes se houver poucos
         if produtos_count > 0:
             session.query(Produto).delete()
             session.commit()
-            print("  → Produtos antigos removidos")
+            print("  -> Produtos antigos removidos")
 
+        # PRODUTOS COM ESPECIFICAÇÕES CORRETAS DO SISTEMA
         produtos_data = [
-            {'nome': 'Zilla', 'largura_cm': 72.0, 'altura_cm': 53.0,
-             'profundidade_cm': 130.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1500.0},
+            {'nome': 'Zilla', 'largura_cm': 111.0, 'altura_cm': 111.0,
+             'profundidade_cm': 150.0, 'peso_real_kg': 63.0, 'valor_nf_padrao': 8100.0},
             {'nome': 'Juna', 'largura_cm': 78.0, 'altura_cm': 186.0,
-             'profundidade_cm': 128.0, 'peso_real_kg': 123.0, 'valor_nf_padrao': 2500.0},
+             'profundidade_cm': 128.0, 'peso_real_kg': 123.0, 'valor_nf_padrao': 15000.0},
             {'nome': 'Kimbo', 'largura_cm': 78.0, 'altura_cm': 186.0,
-             'profundidade_cm': 128.0, 'peso_real_kg': 121.0, 'valor_nf_padrao': 2500.0},
+             'profundidade_cm': 128.0, 'peso_real_kg': 121.0, 'valor_nf_padrao': 15000.0},
             {'nome': 'Kay', 'largura_cm': 78.0, 'altura_cm': 186.0,
-             'profundidade_cm': 128.0, 'peso_real_kg': 161.0, 'valor_nf_padrao': 3000.0},
+             'profundidade_cm': 128.0, 'peso_real_kg': 161.0, 'valor_nf_padrao': 16000.0},
             {'nome': 'Jaya', 'largura_cm': 78.0, 'altura_cm': 186.0,
-             'profundidade_cm': 128.0, 'peso_real_kg': 107.0, 'valor_nf_padrao': 2200.0}
+             'profundidade_cm': 128.0, 'peso_real_kg': 107.0, 'valor_nf_padrao': 14000.0}
         ]
 
         for prod_data in produtos_data:
             produto = Produto(**prod_data)
             session.add(produto)
-            print(f"  → Adicionado: {prod_data['nome']}")
+            print(f"  -> Adicionado: {prod_data['nome']}")
 
         session.commit()
         print(f"  [OK] {len(produtos_data)} produtos criados com sucesso!")
@@ -91,7 +92,7 @@ with Session(engine) as session:
         if estados_count > 0:
             session.query(Estado).delete()
             session.commit()
-            print("  → Estados antigos removidos")
+            print("  -> Estados antigos removidos")
 
         estados_brasil = [
             ('AC', 'Acre', 'Norte'),
@@ -131,7 +132,7 @@ with Session(engine) as session:
                 tem_cobertura=True
             )
             session.add(estado)
-            print(f"  → Adicionado: {sigla} - {nome}")
+            print(f"  -> Adicionado: {sigla} - {nome}")
 
         session.commit()
         print(f"  [OK] {len(estados_brasil)} estados criados com sucesso!")
@@ -156,7 +157,7 @@ with Session(engine) as session:
     print(f"[OK] Cidades: {cidades_final}")
 
     # Validar
-    if produtos_final >= 8 and estados_final >= 27:
+    if produtos_final >= 5 and estados_final >= 27:
         print("\n" + "="*60)
         print("[OK][OK][OK] CORREÇÃO CONCLUÍDA COM SUCESSO! [OK][OK][OK]")
         print("="*60)
