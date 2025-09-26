@@ -1,9 +1,18 @@
 from sqlmodel import create_engine, Session
 from typing import Generator
+import os
 
 # SQLite para começar - trocar por PostgreSQL quando necessário
 # Para PostgreSQL: "postgresql://user:password@localhost/dbname"
-DATABASE_URL = "sqlite:///frete.db"
+# Use environment variable if available (for production)
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///frete.db")
+
+# Create data directory if using SQLite and it doesn't exist
+if "sqlite" in DATABASE_URL:
+    db_path = DATABASE_URL.split("///")[1] if "///" in DATABASE_URL else DATABASE_URL.split("//")[1]
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
 
 engine = create_engine(
     DATABASE_URL,
