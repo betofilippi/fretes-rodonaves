@@ -194,8 +194,7 @@ async def home_extended():
                         label({"for": "produto_id"}, "Produto"),
                         select_({"name": "produto_id", "id": "produto_id", "required": True},
                             option({"value": ""}, "Selecione um produto"),
-                            *[option({"value": str(p.id)},
-                                f"{p.nome} ({p.largura_cm}x{p.altura_cm}x{p.profundidade_cm}cm)")
+                            *[option({"value": str(p.id)}, p.nome)
                               for p in produtos]
                         )
                     ),

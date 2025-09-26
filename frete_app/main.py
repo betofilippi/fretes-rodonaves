@@ -53,10 +53,10 @@ async def startup_event():
         create_db_and_tables()
         print("Database tables created successfully")
 
-        # DESATIVADO - seed_initial_data() sobrescreve com dados incorretos
-        # Os dados corretos são populados pelo start.sh no Railway
-        # seed_initial_data()
-        print("Skipping seed_initial_data - data populated by start.sh")
+        # Popular dados iniciais se necessário
+        # Agora seed_initial_data() tem os produtos de frete corretos
+        seed_initial_data()
+        print("Initial data seeded successfully")
     except Exception as e:
         print(f"Warning: Startup initialization failed: {e}")
         # Continue execution even if database setup fails
