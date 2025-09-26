@@ -55,20 +55,39 @@ if 'extended_router' in locals() and extended_router:
     app.include_router(extended_router)
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Inicialização da aplicação"""
-    try:
-        # Criar tabelas
-        create_db_and_tables()
-        print("Database tables created successfully")
+# Comentado para Vercel - inicialização será feita sob demanda
+# @app.on_event("startup")
+# async def startup_event():
+#     """Inicialização da aplicação"""
+#     try:
+#         # Criar tabelas
+#         create_db_and_tables()
+#         print("Database tables created successfully")
 
-        # Popular dados iniciais se necessário
+#         # Popular dados iniciais se necessário
+#         seed_initial_data()
+#         print("Initial data seeded successfully")
+#     except Exception as e:
+#         print(f"Warning: Startup initialization failed: {e}")
+#         # Continue execution even if database setup fails
+
+# Inicialização sob demanda para Vercel
+def ensure_db_initialized():
+    """Garante que o banco está inicializado"""
+    try:
+        create_db_and_tables()
         seed_initial_data()
-        print("Initial data seeded successfully")
     except Exception as e:
-        print(f"Warning: Startup initialization failed: {e}")
-        # Continue execution even if database setup fails
+        print(f"Warning: Database initialization failed: {e}")
+
+# Middleware para inicializar DB na primeira requisição
+@app.middleware("http")
+async def db_init_middleware(request, call_next):
+    if not hasattr(app.state, "db_initialized"):
+        ensure_db_initialized()
+        app.state.db_initialized = True
+    response = await call_next(request)
+    return response
 
 
 @app.get("/health")
