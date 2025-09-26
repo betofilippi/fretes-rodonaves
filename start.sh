@@ -99,13 +99,30 @@ with Session(engine) as session:
             df = pd.read_excel('Relação Cidades Atendidas Modal Rodoviário_25_03_25.xlsx')
             print(f'[INFO] Lendo {len(df)} cidades do Excel...')
 
+            # Contar categorias
+            categorias_count = {}
             cidades_adicionadas = 0
+
             for _, row in df.iterrows():
                 try:
+                    # Determinar categoria baseada em algo no Excel ou usar default
+                    cidade_nome = str(row.get('Cidade', '')).strip().upper()
+                    uf = str(row.get('UF', '')).strip().upper()
+
+                    # Lógica simplificada de categorização
+                    if 'CAPITAL' in cidade_nome or cidade_nome in ['SAO PAULO', 'RIO DE JANEIRO', 'BELO HORIZONTE',
+                                                                     'PORTO ALEGRE', 'CURITIBA', 'SALVADOR',
+                                                                     'RECIFE', 'FORTALEZA', 'BRASILIA']:
+                        categoria = 'CAPITAL'
+                    else:
+                        categoria = 'INTERIOR_1'  # Maioria das cidades são Interior 1
+
+                    categorias_count[categoria] = categorias_count.get(categoria, 0) + 1
+
                     cidade = Destino(
-                        uf=str(row.get('UF', '')).strip().upper(),
-                        cidade=str(row.get('Cidade', '')).strip().upper(),
-                        categoria=str(row.get('Categoria', 'INTERIOR_1')).strip().upper()
+                        uf=uf,
+                        cidade=cidade_nome,
+                        categoria=categoria
                     )
                     session.add(cidade)
                     cidades_adicionadas += 1
@@ -119,6 +136,7 @@ with Session(engine) as session:
 
             session.commit()
             print(f'[SUCCESS] {cidades_adicionadas} cidades adicionadas à tabela Destino!')
+            print(f'[INFO] Categorias: {categorias_count}')
 
         except Exception as e:
             print(f'[ERROR] Falha ao ler Excel: {e}')
@@ -151,17 +169,93 @@ with Session(engine) as session:
 fi
 
 # Initialize other data (products, states, etc)
-log_with_timestamp "INFO" "=== ETAPA 3: INICIALIZAÇÃO DOS DADOS RESTANTES ==="
-log_with_timestamp "INFO" "Iniciando inicialização de produtos, estados e outros dados..."
+log_with_timestamp "INFO" "=== ETAPA 3: INICIALIZAÇÃO DOS PRODUTOS E ESTADOS ==="
+log_with_timestamp "INFO" "Populando produtos e estados..."
 start_time=$(date +%s.%3N)
 
-python initialize_database.py
-init_exit_code=$?
+# Populate products and states
+python -c "
+import sys
+sys.path.insert(0, '.')
+from frete_app.db import engine
+from frete_app.models import Produto
+from frete_app.models_extended import Estado
+from sqlmodel import Session, select
 
-if check_and_log_result "Inicialização de dados restantes" $init_exit_code $start_time; then
-    log_with_timestamp "INFO" "Dados restantes inicializados com sucesso"
+print('[INFO] Iniciando população de produtos e estados...')
+
+with Session(engine) as session:
+    # Check and populate products
+    produtos_existentes = len(session.exec(select(Produto)).all())
+    print(f'[INFO] Produtos existentes: {produtos_existentes}')
+
+    if produtos_existentes == 0:
+        print('[INFO] Criando produtos...')
+        produtos = [
+            ('CIF', 'CIF - Com frete incluso', 1.0, 0.0),
+            ('FOB', 'FOB - Sem frete', 1.15, 0.0),
+            ('EXW', 'EXW - Retirada', 1.0, 50.0),
+            ('DDP', 'DDP - Entrega completa', 1.20, 0.0),
+            ('FCA', 'FCA - Franco transportador', 1.10, 0.0),
+            ('CPT', 'CPT - Transporte pago até', 1.12, 0.0),
+            ('DAP', 'DAP - Entregue no local', 1.18, 0.0),
+            ('ESPECIAL', 'Produto Especial', 1.25, 100.0)
+        ]
+
+        for codigo, nome, fator_ajuste, taxa_adicional in produtos:
+            produto = Produto(
+                codigo=codigo,
+                nome=nome,
+                fator_ajuste=fator_ajuste,
+                taxa_adicional=taxa_adicional,
+                ativo=True
+            )
+            session.add(produto)
+
+        session.commit()
+        print(f'[SUCCESS] {len(produtos)} produtos criados!')
+
+    # Check and populate states
+    estados_existentes = len(session.exec(select(Estado)).all())
+    print(f'[INFO] Estados existentes: {estados_existentes}')
+
+    if estados_existentes == 0:
+        print('[INFO] Criando estados...')
+        estados_brasil = [
+            ('AC', 'Acre', 'Norte'), ('AL', 'Alagoas', 'Nordeste'),
+            ('AP', 'Amapá', 'Norte'), ('AM', 'Amazonas', 'Norte'),
+            ('BA', 'Bahia', 'Nordeste'), ('CE', 'Ceará', 'Nordeste'),
+            ('DF', 'Distrito Federal', 'Centro-Oeste'), ('ES', 'Espírito Santo', 'Sudeste'),
+            ('GO', 'Goiás', 'Centro-Oeste'), ('MA', 'Maranhão', 'Nordeste'),
+            ('MT', 'Mato Grosso', 'Centro-Oeste'), ('MS', 'Mato Grosso do Sul', 'Centro-Oeste'),
+            ('MG', 'Minas Gerais', 'Sudeste'), ('PA', 'Pará', 'Norte'),
+            ('PB', 'Paraíba', 'Nordeste'), ('PR', 'Paraná', 'Sul'),
+            ('PE', 'Pernambuco', 'Nordeste'), ('PI', 'Piauí', 'Nordeste'),
+            ('RJ', 'Rio de Janeiro', 'Sudeste'), ('RN', 'Rio Grande do Norte', 'Nordeste'),
+            ('RS', 'Rio Grande do Sul', 'Sul'), ('RO', 'Rondônia', 'Norte'),
+            ('RR', 'Roraima', 'Norte'), ('SC', 'Santa Catarina', 'Sul'),
+            ('SP', 'São Paulo', 'Sudeste'), ('SE', 'Sergipe', 'Nordeste'),
+            ('TO', 'Tocantins', 'Norte')
+        ]
+
+        for sigla, nome, regiao in estados_brasil:
+            estado = Estado(sigla=sigla, nome=nome, regiao=regiao, tem_cobertura=True)
+            session.add(estado)
+
+        session.commit()
+        print(f'[SUCCESS] {len(estados_brasil)} estados criados!')
+
+    # Final count
+    total_produtos = len(session.exec(select(Produto)).all())
+    total_estados = len(session.exec(select(Estado)).all())
+    print(f'[FINAL] {total_produtos} produtos, {total_estados} estados no banco')
+"
+populate_exit_code=$?
+
+if check_and_log_result "População de produtos e estados" $populate_exit_code $start_time; then
+    log_with_timestamp "INFO" "Produtos e estados populados com sucesso"
 else
-    log_with_timestamp "ERROR" "Falha na inicialização de dados restantes"
+    log_with_timestamp "ERROR" "Falha na população de produtos e estados"
 fi
 
 # Final database verification
