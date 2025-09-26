@@ -12,7 +12,8 @@ from .models import (
     Destino, CorredorKM, MapDestinoCorredor
 )
 from .calc import calcula_frete, CalcInput, ParamSet, Tarifa
-from .parsers import parse_pdf_tabela, extract_corredor_data_from_cte
+# Temporariamente desabilitado - requer pdfplumber
+# from .parsers import parse_pdf_tabela, extract_corredor_data_from_cte
 from .fasthtml import (
     html, head, body, title, meta, link, script, div, h1, h2, h3, h4, h5,
     form, input_, select_, option, button, table, thead, tbody, tr, th, td,
