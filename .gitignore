@@ -31,8 +31,10 @@ Thumbs.db
 # Logs
 *.log
 
-# Excel files (development only)
+# Excel files (development only) - except production data files
 *.xlsx
+!Relação Cidades Atendidas Modal Rodoviário_25_03_25.xlsx
+!TDAs e TRTs 2025 11_04_25 - NXT.xlsx
 !requirements.txt
 
 # Test files
