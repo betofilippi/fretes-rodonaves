@@ -60,14 +60,22 @@ with Session(engine) as session:
             print("  → Produtos antigos removidos")
 
         produtos_data = [
-            {'codigo': 'CIF', 'nome': 'CIF - Com frete incluso', 'fator_ajuste': 1.0, 'taxa_adicional': 0.0, 'ativo': True},
-            {'codigo': 'FOB', 'nome': 'FOB - Sem frete', 'fator_ajuste': 1.15, 'taxa_adicional': 0.0, 'ativo': True},
-            {'codigo': 'EXW', 'nome': 'EXW - Retirada', 'fator_ajuste': 1.0, 'taxa_adicional': 50.0, 'ativo': True},
-            {'codigo': 'DDP', 'nome': 'DDP - Entrega completa', 'fator_ajuste': 1.20, 'taxa_adicional': 0.0, 'ativo': True},
-            {'codigo': 'FCA', 'nome': 'FCA - Franco transportador', 'fator_ajuste': 1.10, 'taxa_adicional': 0.0, 'ativo': True},
-            {'codigo': 'CPT', 'nome': 'CPT - Transporte pago até', 'fator_ajuste': 1.12, 'taxa_adicional': 0.0, 'ativo': True},
-            {'codigo': 'DAP', 'nome': 'DAP - Entregue no local', 'fator_ajuste': 1.18, 'taxa_adicional': 0.0, 'ativo': True},
-            {'codigo': 'ESPECIAL', 'nome': 'Produto Especial', 'fator_ajuste': 1.25, 'taxa_adicional': 100.0, 'ativo': True}
+            {'nome': 'CIF - Com frete incluso', 'largura_cm': 100.0, 'altura_cm': 100.0,
+             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1000.0},
+            {'nome': 'FOB - Sem frete', 'largura_cm': 100.0, 'altura_cm': 100.0,
+             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1150.0},
+            {'nome': 'EXW - Retirada', 'largura_cm': 100.0, 'altura_cm': 100.0,
+             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1050.0},
+            {'nome': 'DDP - Entrega completa', 'largura_cm': 100.0, 'altura_cm': 100.0,
+             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1200.0},
+            {'nome': 'FCA - Franco transportador', 'largura_cm': 100.0, 'altura_cm': 100.0,
+             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1100.0},
+            {'nome': 'CPT - Transporte pago até', 'largura_cm': 100.0, 'altura_cm': 100.0,
+             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1120.0},
+            {'nome': 'DAP - Entregue no local', 'largura_cm': 100.0, 'altura_cm': 100.0,
+             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1180.0},
+            {'nome': 'Produto Especial', 'largura_cm': 100.0, 'altura_cm': 100.0,
+             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1350.0}
         ]
 
         for prod_data in produtos_data:

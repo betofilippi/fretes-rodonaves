@@ -11,63 +11,71 @@ def seed_initial_data():
         if existing_produtos:
             return  # Dados já existem
 
-        # Criar produtos de frete
+        # Criar produtos de frete (compatível com estrutura existente)
         produtos = [
             Produto(
-                codigo="CIF",
                 nome="CIF - Com frete incluso",
-                fator_ajuste=1.0,
-                taxa_adicional=0.0,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=1000.0
             ),
             Produto(
-                codigo="FOB",
                 nome="FOB - Sem frete",
-                fator_ajuste=1.15,
-                taxa_adicional=0.0,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=1150.0
             ),
             Produto(
-                codigo="EXW",
                 nome="EXW - Retirada",
-                fator_ajuste=1.0,
-                taxa_adicional=50.0,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=1050.0
             ),
             Produto(
-                codigo="DDP",
                 nome="DDP - Entrega completa",
-                fator_ajuste=1.20,
-                taxa_adicional=0.0,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=1200.0
             ),
             Produto(
-                codigo="FCA",
                 nome="FCA - Franco transportador",
-                fator_ajuste=1.10,
-                taxa_adicional=0.0,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=1100.0
             ),
             Produto(
-                codigo="CPT",
                 nome="CPT - Transporte pago até",
-                fator_ajuste=1.12,
-                taxa_adicional=0.0,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=1120.0
             ),
             Produto(
-                codigo="DAP",
                 nome="DAP - Entregue no local",
-                fator_ajuste=1.18,
-                taxa_adicional=0.0,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=1180.0
             ),
             Produto(
-                codigo="ESPECIAL",
                 nome="Produto Especial",
-                fator_ajuste=1.25,
-                taxa_adicional=100.0,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=1350.0
             )
         ]
 

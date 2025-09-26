@@ -226,12 +226,14 @@ with Session(engine) as session:
         ]
 
         for codigo, nome, fator_ajuste, taxa_adicional in produtos:
+            valor_nf = 1000.0 * fator_ajuste + taxa_adicional
             produto = Produto(
-                codigo=codigo,
                 nome=nome,
-                fator_ajuste=fator_ajuste,
-                taxa_adicional=taxa_adicional,
-                ativo=True
+                largura_cm=100.0,
+                altura_cm=100.0,
+                profundidade_cm=100.0,
+                peso_real_kg=50.0,
+                valor_nf_padrao=valor_nf
             )
             session.add(produto)
 
