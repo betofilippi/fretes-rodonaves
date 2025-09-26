@@ -11,47 +11,63 @@ def seed_initial_data():
         if existing_produtos:
             return  # Dados já existem
 
-        # Criar produtos baseados no especificacoes_produtos.md
+        # Criar produtos de frete
         produtos = [
             Produto(
-                nome="Zilla",
-                largura_cm=72.0,
-                altura_cm=53.0,
-                profundidade_cm=130.0,
-                peso_real_kg=50.0,  # Estimativa
-                valor_nf_padrao=1500.00  # Valor típico para frete (não preço da embalagem)
+                codigo="CIF",
+                nome="CIF - Com frete incluso",
+                fator_ajuste=1.0,
+                taxa_adicional=0.0,
+                ativo=True
             ),
             Produto(
-                nome="Juna",
-                largura_cm=78.0,
-                altura_cm=186.0,
-                profundidade_cm=128.0,
-                peso_real_kg=123.0,
-                valor_nf_padrao=2500.00  # Valor típico para frete
+                codigo="FOB",
+                nome="FOB - Sem frete",
+                fator_ajuste=1.15,
+                taxa_adicional=0.0,
+                ativo=True
             ),
             Produto(
-                nome="Kimbo",
-                largura_cm=78.0,
-                altura_cm=186.0,
-                profundidade_cm=128.0,
-                peso_real_kg=121.0,
-                valor_nf_padrao=2500.00  # Valor típico para frete
+                codigo="EXW",
+                nome="EXW - Retirada",
+                fator_ajuste=1.0,
+                taxa_adicional=50.0,
+                ativo=True
             ),
             Produto(
-                nome="Kay",
-                largura_cm=78.0,
-                altura_cm=186.0,
-                profundidade_cm=128.0,
-                peso_real_kg=161.0,
-                valor_nf_padrao=3000.00  # Valor típico para frete (mais pesado)
+                codigo="DDP",
+                nome="DDP - Entrega completa",
+                fator_ajuste=1.20,
+                taxa_adicional=0.0,
+                ativo=True
             ),
             Produto(
-                nome="Jaya",
-                largura_cm=78.0,
-                altura_cm=186.0,
-                profundidade_cm=128.0,
-                peso_real_kg=107.0,
-                valor_nf_padrao=2200.00  # Valor típico para frete
+                codigo="FCA",
+                nome="FCA - Franco transportador",
+                fator_ajuste=1.10,
+                taxa_adicional=0.0,
+                ativo=True
+            ),
+            Produto(
+                codigo="CPT",
+                nome="CPT - Transporte pago até",
+                fator_ajuste=1.12,
+                taxa_adicional=0.0,
+                ativo=True
+            ),
+            Produto(
+                codigo="DAP",
+                nome="DAP - Entregue no local",
+                fator_ajuste=1.18,
+                taxa_adicional=0.0,
+                ativo=True
+            ),
+            Produto(
+                codigo="ESPECIAL",
+                nome="Produto Especial",
+                fator_ajuste=1.25,
+                taxa_adicional=100.0,
+                ativo=True
             )
         ]
 

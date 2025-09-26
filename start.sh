@@ -36,6 +36,19 @@ log_with_timestamp "INFO" "Variáveis de ambiente relevantes:"
 log_with_timestamp "INFO" "  PORT=${PORT:-8000}"
 log_with_timestamp "INFO" "  DATABASE_URL=${DATABASE_URL:0:50}..." # Só mostrar início por segurança
 
+# LIMPAR BANCO ANTIGO (apenas no Railway)
+if [ -n "$RAILWAY_ENVIRONMENT" ] || [ -n "$DATABASE_URL" ]; then
+    log_with_timestamp "INFO" "=== AMBIENTE RAILWAY DETECTADO - LIMPANDO BANCO ANTIGO ==="
+    if [ -f "/app/data/frete.db" ]; then
+        rm -f /app/data/frete.db
+        log_with_timestamp "INFO" "Banco antigo removido"
+    fi
+    if [ -f "./data/frete.db" ]; then
+        rm -f ./data/frete.db
+        log_with_timestamp "INFO" "Banco local removido"
+    fi
+fi
+
 # FORÇA CORREÇÃO DE PRODUTOS E ESTADOS
 log_with_timestamp "INFO" "=== EXECUTANDO CORREÇÃO FORÇADA ==="
 python force_fix_railway.py

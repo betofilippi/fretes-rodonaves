@@ -4,12 +4,11 @@ from sqlmodel import SQLModel, Field, Relationship
 
 class Produto(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    codigo: str  # CIF, FOB, EXW, etc.
     nome: str
-    largura_cm: float
-    altura_cm: float
-    profundidade_cm: float
-    peso_real_kg: float
-    valor_nf_padrao: float = 0.0
+    fator_ajuste: float = 1.0  # Fator de ajuste do preço
+    taxa_adicional: float = 0.0  # Taxa adicional fixa
+    ativo: bool = Field(default=True)
     criado_em: datetime = Field(default_factory=datetime.utcnow)
 
 class VersaoTabela(SQLModel, table=True):

@@ -396,7 +396,7 @@ async def autocomplete_cidades(
                     .join(Estado, CidadeRodonaves.estado_id == Estado.id)
                     .where(
                         and_(
-                            Estado.sigla == estado_normalizado,
+                            Estado.sigla == estado_norm,
                             CidadeRodonaves.nome.ilike(termo_original)
                         )
                     )
@@ -408,7 +408,7 @@ async def autocomplete_cidades(
                     select(Destino)
                     .where(
                         and_(
-                            Destino.uf == estado_normalizado,
+                            Destino.uf == estado_norm,
                             Destino.cidade.ilike(termo_original)
                         )
                     )
@@ -427,7 +427,7 @@ async def autocomplete_cidades(
                     .join(Estado, CidadeRodonaves.estado_id == Estado.id)
                     .where(
                         and_(
-                            Estado.sigla == estado_normalizado,
+                            Estado.sigla == estado_norm,
                             CidadeRodonaves.nome.ilike(f"{termo_original}%")
                         )
                     )
@@ -439,7 +439,7 @@ async def autocomplete_cidades(
                     select(Destino)
                     .where(
                         and_(
-                            Destino.uf == estado_normalizado,
+                            Destino.uf == estado_norm,
                             Destino.cidade.ilike(f"{termo_original}%")
                         )
                     )
@@ -458,7 +458,7 @@ async def autocomplete_cidades(
                     .join(Estado, CidadeRodonaves.estado_id == Estado.id)
                     .where(
                         and_(
-                            Estado.sigla == estado_normalizado,
+                            Estado.sigla == estado_norm,
                             CidadeRodonaves.nome.ilike(f"%{termo_original}%")
                         )
                     )
@@ -470,7 +470,7 @@ async def autocomplete_cidades(
                     select(Destino)
                     .where(
                         and_(
-                            Destino.uf == estado_normalizado,
+                            Destino.uf == estado_norm,
                             Destino.cidade.ilike(f"%{termo_original}%")
                         )
                     )
@@ -523,7 +523,7 @@ async def autocomplete_cidades(
                                 .join(Estado, CidadeRodonaves.estado_id == Estado.id)
                                 .where(
                                     and_(
-                                        Estado.sigla == estado_normalizado,
+                                        Estado.sigla == estado_norm,
                                         or_(*condicoes_palavras)
                                     )
                                 )
@@ -535,7 +535,7 @@ async def autocomplete_cidades(
                                 select(Destino)
                                 .where(
                                     and_(
-                                        Destino.uf == estado_normalizado,
+                                        Destino.uf == estado_norm,
                                         or_(*condicoes_palavras)
                                     )
                                 )
@@ -554,13 +554,13 @@ async def autocomplete_cidades(
                     amostra_cidades = session.exec(
                         select(CidadeRodonaves.nome)
                         .join(Estado, CidadeRodonaves.estado_id == Estado.id)
-                        .where(Estado.sigla == estado_normalizado)
+                        .where(Estado.sigla == estado_norm)
                         .limit(5)
                     ).all()
                 else:
                     amostra_cidades = session.exec(
                         select(Destino.cidade)
-                        .where(Destino.uf == estado_normalizado)
+                        .where(Destino.uf == estado_norm)
                         .limit(5)
                     ).all()
 
