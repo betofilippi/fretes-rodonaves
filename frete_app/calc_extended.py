@@ -8,16 +8,10 @@ from typing import Optional, List
 from dataclasses import dataclass
 from sqlmodel import Session, select
 
-try:
-    from .db import engine
-    from .models import Produto, VersaoTabela, ParametrosGerais, TarifaPeso
-    from .models_extended import CidadeRodonaves, TaxaEspecial, TabelaTarifaCompleta
-    from .calc import CalcInput, CalcBreakdown, Tarifa, ParamSet, calcula_frete, cubagem_kg
-except ImportError:
-    from db import engine
-    from models import Produto, VersaoTabela, ParametrosGerais, TarifaPeso
-    from models_extended import CidadeRodonaves, TaxaEspecial, TabelaTarifaCompleta
-    from calc import CalcInput, CalcBreakdown, Tarifa, ParamSet, calcula_frete, cubagem_kg
+from .db import engine
+from .models import Produto, VersaoTabela, ParametrosGerais, TarifaPeso
+from .models_extended import CidadeRodonaves, TaxaEspecial, TabelaTarifaCompleta
+from .calc import CalcInput, CalcBreakdown, Tarifa, ParamSet, calcula_frete, cubagem_kg
 
 
 @dataclass

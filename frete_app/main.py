@@ -3,19 +3,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
-try:
-    from .db import create_db_and_tables
-    from .views import router as ui_router
-    from .views_extended import router as extended_router
-    from .seed_data import seed_initial_data
-except ImportError:
-    from db import create_db_and_tables
-    from views import router as ui_router
-    try:
-        from views_extended import router as extended_router
-    except ImportError:
-        extended_router = None
-    from seed_data import seed_initial_data
+from .db import create_db_and_tables
+from .views import router as ui_router
+from .views_extended import router as extended_router
+from .seed_data import seed_initial_data
 
 app = FastAPI(
     title="Calculadora de Frete Rodonaves",
@@ -51,8 +42,7 @@ async def root():
 # app.include_router(ui_router)
 
 # Sistema principal - extended
-if 'extended_router' in locals() and extended_router:
-    app.include_router(extended_router)
+app.include_router(extended_router)
 
 
 @app.on_event("startup")

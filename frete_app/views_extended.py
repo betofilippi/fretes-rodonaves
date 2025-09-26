@@ -7,18 +7,11 @@ from fastapi.responses import HTMLResponse
 from typing import Optional, List
 from sqlmodel import Session, select
 
-try:
-    from .db import engine
-    from .models import Produto, VersaoTabela
-    from .models_extended import CidadeRodonaves, Estado, TaxaEspecial
-    from .calc_extended import calcula_frete_completo, CalcBreakdownExtended
-    from .fasthtml import *
-except ImportError:
-    from db import engine
-    from models import Produto, VersaoTabela
-    from models_extended import CidadeRodonaves, Estado, TaxaEspecial
-    from calc_extended import calcula_frete_completo, CalcBreakdownExtended
-    from fasthtml import *
+from .db import engine
+from .models import Produto, VersaoTabela
+from .models_extended import CidadeRodonaves, Estado, TaxaEspecial
+from .calc_extended import calcula_frete_completo, CalcBreakdownExtended
+from .fasthtml import *
 
 
 router = APIRouter()
