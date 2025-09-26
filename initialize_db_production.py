@@ -75,13 +75,13 @@ def init_production_database():
                 ("TO", "Tocantins")
             ]
             for uf, nome in estados_brasil:
-                session.add(Estado(uf=uf, nome=nome))
+                session.add(Estado(sigla=uf, nome=nome))
             session.commit()
             print(f"[OK] {len(estados_brasil)} estados criados")
         else:
             print("[OK] Estados ja existem")
 
-    # 3. FILIAIS E CIDADES - Tentar importar dos Excel
+    # 3. FILIAIS E CIDADES - Tentar importar dos Excel ou usar fallback
     print("[INFO] Verificando cidades...")
     from frete_app.models_extended import CidadeRodonaves, FilialRodonaves
 
@@ -89,33 +89,28 @@ def init_production_database():
         cidade_count = session.exec(select(CidadeRodonaves)).first()
 
         if not cidade_count:
-            print("[INFO] Tentando importar cidades dos arquivos Excel...")
+            print("[INFO] Importando cidades...")
 
-            # Tentar importar TDA
+            # Usar o novo script de importação que tem fallback embutido
             try:
-                from import_tda import import_tda_data
-                import_tda_data()
-                print("[OK] TDA importado")
-            except Exception as e:
-                print(f"[AVISO] Falha ao importar TDA: {e}")
-                # Criar dados mínimos de fallback
-                criar_cidades_minimas(session)
+                from import_cities_data import import_cities_from_excel, create_essential_cities
 
-            # Tentar importar TRT
-            try:
-                from import_trt import import_trt_data
-                import_trt_data()
-                print("[OK] TRT importado")
-            except Exception as e:
-                print(f"[AVISO] Falha ao importar TRT: {e}")
+                # Tentar importar do Excel
+                if not import_cities_from_excel():
+                    # Se falhar, criar cidades essenciais
+                    create_essential_cities()
+                    print("[OK] Cidades essenciais criadas")
+                else:
+                    print("[OK] Cidades importadas do Excel")
 
-            # Tentar importar prazos
-            try:
-                from import_delivery_times import import_delivery_times
-                import_delivery_times()
-                print("[OK] Prazos importados")
             except Exception as e:
-                print(f"[AVISO] Falha ao importar prazos: {e}")
+                print(f"[ERRO] Falha na importacao de cidades: {e}")
+                # Fallback final - criar cidades mínimas
+                try:
+                    criar_cidades_minimas(session)
+                    print("[OK] Cidades minimas criadas como fallback")
+                except Exception as e2:
+                    print(f"[ERRO] Falha total ao criar cidades: {e2}")
         else:
             print("[OK] Cidades ja existem")
 
