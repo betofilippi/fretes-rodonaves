@@ -11,71 +11,47 @@ def seed_initial_data():
         if existing_produtos:
             return  # Dados já existem
 
-        # Criar produtos de frete (compatível com estrutura existente)
+        # Criar produtos (móveis)
         produtos = [
             Produto(
-                nome="CIF - Com frete incluso",
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
+                nome="Zilla",
+                largura_cm=72.0,
+                altura_cm=53.0,
+                profundidade_cm=130.0,
                 peso_real_kg=50.0,
-                valor_nf_padrao=1000.0
+                valor_nf_padrao=1500.00
             ),
             Produto(
-                nome="FOB - Sem frete",
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
-                peso_real_kg=50.0,
-                valor_nf_padrao=1150.0
+                nome="Juna",
+                largura_cm=78.0,
+                altura_cm=186.0,
+                profundidade_cm=128.0,
+                peso_real_kg=123.0,
+                valor_nf_padrao=2500.00
             ),
             Produto(
-                nome="EXW - Retirada",
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
-                peso_real_kg=50.0,
-                valor_nf_padrao=1050.0
+                nome="Kimbo",
+                largura_cm=78.0,
+                altura_cm=186.0,
+                profundidade_cm=128.0,
+                peso_real_kg=121.0,
+                valor_nf_padrao=2500.00
             ),
             Produto(
-                nome="DDP - Entrega completa",
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
-                peso_real_kg=50.0,
-                valor_nf_padrao=1200.0
+                nome="Kay",
+                largura_cm=78.0,
+                altura_cm=186.0,
+                profundidade_cm=128.0,
+                peso_real_kg=161.0,
+                valor_nf_padrao=3000.00
             ),
             Produto(
-                nome="FCA - Franco transportador",
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
-                peso_real_kg=50.0,
-                valor_nf_padrao=1100.0
-            ),
-            Produto(
-                nome="CPT - Transporte pago até",
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
-                peso_real_kg=50.0,
-                valor_nf_padrao=1120.0
-            ),
-            Produto(
-                nome="DAP - Entregue no local",
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
-                peso_real_kg=50.0,
-                valor_nf_padrao=1180.0
-            ),
-            Produto(
-                nome="Produto Especial",
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
-                peso_real_kg=50.0,
-                valor_nf_padrao=1350.0
+                nome="Jaya",
+                largura_cm=78.0,
+                altura_cm=186.0,
+                profundidade_cm=128.0,
+                peso_real_kg=107.0,
+                valor_nf_padrao=2200.00
             )
         ]
 

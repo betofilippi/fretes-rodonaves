@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 SCRIPT DE CORREÇÃO FORÇADA PARA RAILWAY
 Este script FORÇA a população correta de produtos e estados
@@ -19,14 +20,14 @@ print("="*60)
 try:
     from frete_app.models import Produto, Destino
     from frete_app.models_extended import Estado
-    print("✓ Modelos importados com sucesso")
+    print("[OK] Modelos importados com sucesso")
 except Exception as e:
-    print(f"✗ Erro ao importar modelos: {e}")
+    print(f"[ERRO] Erro ao importar modelos: {e}")
     sys.exit(1)
 
 # Criar todas as tabelas
 SQLModel.metadata.create_all(engine)
-print("✓ Tabelas verificadas/criadas")
+print("[OK] Tabelas verificadas/criadas")
 
 with Session(engine) as session:
     print("\n--- VERIFICANDO ESTADO ATUAL ---")
@@ -60,33 +61,27 @@ with Session(engine) as session:
             print("  → Produtos antigos removidos")
 
         produtos_data = [
-            {'nome': 'CIF - Com frete incluso', 'largura_cm': 100.0, 'altura_cm': 100.0,
-             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1000.0},
-            {'nome': 'FOB - Sem frete', 'largura_cm': 100.0, 'altura_cm': 100.0,
-             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1150.0},
-            {'nome': 'EXW - Retirada', 'largura_cm': 100.0, 'altura_cm': 100.0,
-             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1050.0},
-            {'nome': 'DDP - Entrega completa', 'largura_cm': 100.0, 'altura_cm': 100.0,
-             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1200.0},
-            {'nome': 'FCA - Franco transportador', 'largura_cm': 100.0, 'altura_cm': 100.0,
-             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1100.0},
-            {'nome': 'CPT - Transporte pago até', 'largura_cm': 100.0, 'altura_cm': 100.0,
-             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1120.0},
-            {'nome': 'DAP - Entregue no local', 'largura_cm': 100.0, 'altura_cm': 100.0,
-             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1180.0},
-            {'nome': 'Produto Especial', 'largura_cm': 100.0, 'altura_cm': 100.0,
-             'profundidade_cm': 100.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1350.0}
+            {'nome': 'Zilla', 'largura_cm': 72.0, 'altura_cm': 53.0,
+             'profundidade_cm': 130.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1500.0},
+            {'nome': 'Juna', 'largura_cm': 78.0, 'altura_cm': 186.0,
+             'profundidade_cm': 128.0, 'peso_real_kg': 123.0, 'valor_nf_padrao': 2500.0},
+            {'nome': 'Kimbo', 'largura_cm': 78.0, 'altura_cm': 186.0,
+             'profundidade_cm': 128.0, 'peso_real_kg': 121.0, 'valor_nf_padrao': 2500.0},
+            {'nome': 'Kay', 'largura_cm': 78.0, 'altura_cm': 186.0,
+             'profundidade_cm': 128.0, 'peso_real_kg': 161.0, 'valor_nf_padrao': 3000.0},
+            {'nome': 'Jaya', 'largura_cm': 78.0, 'altura_cm': 186.0,
+             'profundidade_cm': 128.0, 'peso_real_kg': 107.0, 'valor_nf_padrao': 2200.0}
         ]
 
         for prod_data in produtos_data:
             produto = Produto(**prod_data)
             session.add(produto)
-            print(f"  → Adicionado: {prod_data['codigo']}")
+            print(f"  → Adicionado: {prod_data['nome']}")
 
         session.commit()
-        print(f"  ✓ {len(produtos_data)} produtos criados com sucesso!")
+        print(f"  [OK] {len(produtos_data)} produtos criados com sucesso!")
     else:
-        print("\n[1/3] Produtos já populados ✓")
+        print("\n[1/3] Produtos já populados [OK]")
 
     # FORÇAR CRIAÇÃO DE ESTADOS
     if estados_count < 27:
@@ -139,13 +134,13 @@ with Session(engine) as session:
             print(f"  → Adicionado: {sigla} - {nome}")
 
         session.commit()
-        print(f"  ✓ {len(estados_brasil)} estados criados com sucesso!")
+        print(f"  [OK] {len(estados_brasil)} estados criados com sucesso!")
     else:
-        print("\n[2/3] Estados já populados ✓")
+        print("\n[2/3] Estados já populados [OK]")
 
     # Verificar cidades (não vamos mexer se já tem muitas)
     if cidades_count > 1000:
-        print(f"\n[3/3] Cidades já populadas ({cidades_count} cidades) ✓")
+        print(f"\n[3/3] Cidades já populadas ({cidades_count} cidades) [OK]")
     else:
         print(f"\n[3/3] Cidades: {cidades_count} (manter como está)")
 
@@ -156,18 +151,18 @@ with Session(engine) as session:
     estados_final = len(session.exec(select(Estado)).all())
     cidades_final = len(session.exec(select(Destino)).all())
 
-    print(f"✓ Produtos: {produtos_final}")
-    print(f"✓ Estados: {estados_final}")
-    print(f"✓ Cidades: {cidades_final}")
+    print(f"[OK] Produtos: {produtos_final}")
+    print(f"[OK] Estados: {estados_final}")
+    print(f"[OK] Cidades: {cidades_final}")
 
     # Validar
     if produtos_final >= 8 and estados_final >= 27:
         print("\n" + "="*60)
-        print("✓✓✓ CORREÇÃO CONCLUÍDA COM SUCESSO! ✓✓✓")
+        print("[OK][OK][OK] CORREÇÃO CONCLUÍDA COM SUCESSO! [OK][OK][OK]")
         print("="*60)
         sys.exit(0)
     else:
         print("\n" + "="*60)
-        print("✗✗✗ ERRO: Ainda faltam dados! ✗✗✗")
+        print("[ERRO][ERRO][ERRO] ERRO: Ainda faltam dados! [ERRO][ERRO][ERRO]")
         print("="*60)
         sys.exit(1)

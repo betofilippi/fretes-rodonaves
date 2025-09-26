@@ -215,26 +215,20 @@ with Session(engine) as session:
     if produtos_existentes == 0:
         print('[INFO] Criando produtos...')
         produtos = [
-            ('CIF', 'CIF - Com frete incluso', 1.0, 0.0),
-            ('FOB', 'FOB - Sem frete', 1.15, 0.0),
-            ('EXW', 'EXW - Retirada', 1.0, 50.0),
-            ('DDP', 'DDP - Entrega completa', 1.20, 0.0),
-            ('FCA', 'FCA - Franco transportador', 1.10, 0.0),
-            ('CPT', 'CPT - Transporte pago até', 1.12, 0.0),
-            ('DAP', 'DAP - Entregue no local', 1.18, 0.0),
-            ('ESPECIAL', 'Produto Especial', 1.25, 100.0)
+            {'nome': 'Zilla', 'largura_cm': 72.0, 'altura_cm': 53.0,
+             'profundidade_cm': 130.0, 'peso_real_kg': 50.0, 'valor_nf_padrao': 1500.0},
+            {'nome': 'Juna', 'largura_cm': 78.0, 'altura_cm': 186.0,
+             'profundidade_cm': 128.0, 'peso_real_kg': 123.0, 'valor_nf_padrao': 2500.0},
+            {'nome': 'Kimbo', 'largura_cm': 78.0, 'altura_cm': 186.0,
+             'profundidade_cm': 128.0, 'peso_real_kg': 121.0, 'valor_nf_padrao': 2500.0},
+            {'nome': 'Kay', 'largura_cm': 78.0, 'altura_cm': 186.0,
+             'profundidade_cm': 128.0, 'peso_real_kg': 161.0, 'valor_nf_padrao': 3000.0},
+            {'nome': 'Jaya', 'largura_cm': 78.0, 'altura_cm': 186.0,
+             'profundidade_cm': 128.0, 'peso_real_kg': 107.0, 'valor_nf_padrao': 2200.0}
         ]
 
-        for codigo, nome, fator_ajuste, taxa_adicional in produtos:
-            valor_nf = 1000.0 * fator_ajuste + taxa_adicional
-            produto = Produto(
-                nome=nome,
-                largura_cm=100.0,
-                altura_cm=100.0,
-                profundidade_cm=100.0,
-                peso_real_kg=50.0,
-                valor_nf_padrao=valor_nf
-            )
+        for prod_data in produtos:
+            produto = Produto(**prod_data)
             session.add(produto)
 
         session.commit()
