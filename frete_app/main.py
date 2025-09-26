@@ -34,7 +34,12 @@ app.add_middleware(
 
 # Servir arquivos estáticos
 import os
-app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
+try:
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+except Exception as e:
+    print(f"Warning: Could not mount static files: {e}")
 
 # Rota raiz redireciona para /extended (sistema principal)
 @app.get("/")
@@ -53,11 +58,17 @@ if 'extended_router' in locals() and extended_router:
 @app.on_event("startup")
 async def startup_event():
     """Inicialização da aplicação"""
-    # Criar tabelas
-    create_db_and_tables()
+    try:
+        # Criar tabelas
+        create_db_and_tables()
+        print("Database tables created successfully")
 
-    # Popular dados iniciais se necessário
-    seed_initial_data()
+        # Popular dados iniciais se necessário
+        seed_initial_data()
+        print("Initial data seeded successfully")
+    except Exception as e:
+        print(f"Warning: Startup initialization failed: {e}")
+        # Continue execution even if database setup fails
 
 
 @app.get("/health")

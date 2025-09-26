@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Teste Sistema Extended</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .test { margin: 20px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .form-group { margin: 10px 0; }
+        label { display: inline-block; width: 150px; }
+        input, select { padding: 5px; width: 200px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        #resultado { margin-top: 20px; padding: 20px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>Teste do Sistema Extended</h1>
+
+    <div class="test">
+        <h2>1. Teste Manual de API</h2>
+        <button onclick="testAPI()">Testar APIs</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="test">
+        <h2>2. Teste de Formulário HTMX</h2>
+        <form hx-post="/extended/calcular" hx-target="#resultado">
+            <div class="form-group">
+                <label>Estado:</label>
+                <select name="estado" id="estado" hx-get="/extended/cidades" hx-target="#cidade-container" hx-trigger="change">
+                    <option value="">Selecione</option>
+                    <option value="SP">SP</option>
+                    <option value="RJ">RJ</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="cidade-container">
+                <label>Cidade:</label>
+                <input type="text" placeholder="Selecione o estado primeiro" disabled>
+            </div>
+
+            <div class="form-group">
+                <label>Produto:</label>
+                <select name="produto_id" required>
+                    <option value="1">Zilla</option>
+                    <option value="2">Juna</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Valor NF:</label>
+                <input type="number" name="valor_nf" value="1000">
+            </div>
+
+            <button type="submit">Calcular Frete</button>
+        </form>
+
+        <div id="resultado"></div>
+    </div>
+
+    <script>
+    async function testAPI() {
+        const results = document.getElementById('api-results');
+        results.innerHTML = '<p>Testando...</p>';
+
+        let html = '';
+
+        // Test 1: Get cities for SP
+        try {
+            const resp1 = await fetch('/extended/cidades?estado=SP');
+            const text1 = await resp1.text();
+            html += `<p>✓ Cidades SP: ${resp1.status} - ${text1.includes('cidade_busca') ? 'OK' : 'ERRO'}</p>`;
+        } catch(e) {
+            html += `<p>✗ Cidades SP: ${e.message}</p>`;
+        }
+
+        // Test 2: Autocomplete
+        try {
+            const resp2 = await fetch('/extended/autocomplete?estado=SP&cidade_busca=sao');
+            const text2 = await resp2.text();
+            html += `<p>✓ Autocomplete: ${resp2.status} - ${text2.includes('SAO PAULO') ? 'OK' : 'VAZIO'}</p>`;
+        } catch(e) {
+            html += `<p>✗ Autocomplete: ${e.message}</p>`;
+        }
+
+        // Test 3: Calculate
+        try {
+            const formData = new URLSearchParams();
+            formData.append('produto_id', '1');
+            formData.append('cidade_id', '1');
+            formData.append('valor_nf', '1000');
+
+            const resp3 = await fetch('/extended/calcular', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: formData
+            });
+            const text3 = await resp3.text();
+            html += `<p>✓ Cálculo: ${resp3.status} - ${text3.includes('R$') ? 'OK' : 'ERRO'}</p>`;
+        } catch(e) {
+            html += `<p>✗ Cálculo: ${e.message}</p>`;
+        }
+
+        results.innerHTML = html;
+    }
+
+    // Debug HTMX
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        console.log('HTMX Request:', evt.detail);
+    });
+    </script>
+</body>
+</html>
