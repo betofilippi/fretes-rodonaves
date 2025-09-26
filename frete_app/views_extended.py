@@ -668,13 +668,13 @@ async def estatisticas():
 
         # Cidades por categoria
         capitais = len(session.exec(
-            select(Destino).where(CidadeRodonaves.categoria_tarifa == "CAPITAL")
+            select(Destino).where(Destino.categoria == "CAPITAL")
         ).all())
         interior1 = len(session.exec(
-            select(Destino).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_1")
+            select(Destino).where(Destino.categoria == "INTERIOR_1")
         ).all())
         interior2 = len(session.exec(
-            select(Destino).where(CidadeRodonaves.categoria_tarifa == "INTERIOR_2")
+            select(Destino).where(Destino.categoria == "INTERIOR_2")
         ).all())
 
         # Top estados
